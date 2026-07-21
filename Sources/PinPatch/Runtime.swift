@@ -46,7 +46,7 @@ final class PinPatchRuntime {
         let key = scene.session.persistentIdentifier
         let session = sessions[key] ?? PPSceneSession(scene: scene)
         sessions[key] = session
-        session.toggle()
+        session.toggle(shakeWindow: window)
     }
 
     private func removeSession(for key: String) {
@@ -59,6 +59,7 @@ final class PinPatchRuntime {
 final class PPSceneSession {
     private weak var scene: UIWindowScene?
     private var overlay: PPOverlayWindow?
+    private weak var hostWindow: UIWindow?
     private var lastToggleUptime: TimeInterval = -.infinity
     private var normalizedBubblePosition: CGPoint?
 
@@ -66,7 +67,10 @@ final class PPSceneSession {
         self.scene = scene
     }
 
-    func toggle() {
+    func toggle(shakeWindow: UIWindow? = nil) {
+        if let shakeWindow, PPHostWindowResolver.isHostCandidate(shakeWindow) {
+            hostWindow = shakeWindow
+        }
         let now = ProcessInfo.processInfo.systemUptime
         guard now - lastToggleUptime >= 0.5 else { return }
         if overlay == nil {
@@ -111,8 +115,7 @@ final class PPSceneSession {
 
     private func appWindow() -> UIWindow? {
         guard let scene else { return nil }
-        return scene.windows.first(where: { $0.isKeyWindow && !($0 is PPOverlayWindow) })
-            ?? scene.windows.reversed().first(where: { !$0.isHidden && $0.alpha > 0 && !($0 is PPOverlayWindow) })
+        return PPHostWindowResolver.resolve(remembered: hostWindow, in: scene.windows)
     }
 
     private func beginCapture(at point: CGPoint) {

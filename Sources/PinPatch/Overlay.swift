@@ -130,7 +130,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
 
     func presentInOverlay(_ controller: UIViewController) {
         guard let window = view.window else { return }
-        previousKeyWindow = window.windowScene?.windows.first(where: { $0.isKeyWindow && $0 !== window })
+        rememberPreviousKeyWindow(besides: window)
         window.makeKey()
         controller.modalPresentationStyle = .fullScreen
         present(controller, animated: true)
@@ -138,7 +138,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
 
     func embedToolContent(_ controller: UIViewController) {
         guard let window = view.window, embeddedToolController == nil else { return }
-        previousKeyWindow = window.windowScene?.windows.first(where: { $0.isKeyWindow && $0 !== window })
+        rememberPreviousKeyWindow(besides: window)
         window.makeKey()
         addChild(controller)
         controller.view.frame = view.bounds
@@ -159,13 +159,13 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
             completion()
             return
         }
+        controller.view.endEditing(true)
         controller.willMove(toParent: nil)
         let finish = { [weak self, weak controller] in
             controller?.view.removeFromSuperview()
             controller?.removeFromParent()
             self?.embeddedToolController = nil
-            self?.previousKeyWindow?.makeKey()
-            self?.previousKeyWindow = nil
+            self?.restoreHostKeyWindow()
             completion()
         }
         guard animated else {
@@ -180,13 +180,13 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
 
     func dismissOverlayPresentation() {
         dismiss(animated: true) { [weak self] in
-            self?.previousKeyWindow?.makeKey()
-            self?.previousKeyWindow = nil
+            self?.restoreHostKeyWindow()
         }
     }
 
     func prepareForRemoval() {
         infoHideWorkItem?.cancel()
+        view.endEditing(true)
         dismiss(animated: false)
         if let embeddedToolController {
             embeddedToolController.willMove(toParent: nil)
@@ -195,8 +195,21 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
             self.embeddedToolController = nil
         }
         activeFlow = nil
-        previousKeyWindow?.makeKey()
+        restoreHostKeyWindow()
+    }
+
+    private func rememberPreviousKeyWindow(besides window: UIWindow) {
+        let currentKey = window.windowScene?.windows.first(where: {
+            $0.isKeyWindow && $0 !== window && PPHostWindowResolver.isHostCandidate($0)
+        })
+        previousKeyWindow = currentKey ?? previousKeyWindow
+    }
+
+    private func restoreHostKeyWindow() {
+        let sceneWindows = view.window?.windowScene?.windows ?? []
+        let target = PPHostWindowResolver.resolve(remembered: previousKeyWindow, in: sceneWindows)
         previousKeyWindow = nil
+        target?.makeKey()
     }
 
     func showNonBlockingError(_ message: String) {
