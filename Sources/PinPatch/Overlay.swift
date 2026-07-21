@@ -53,6 +53,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
+        view.isOpaque = false
         view.accessibilityViewIsModal = false
         configureBubble()
         configureActions()

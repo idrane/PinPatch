@@ -97,6 +97,7 @@ final class PPSceneSession {
         window.rootViewController = controller
         window.windowLevel = .alert + 1
         window.backgroundColor = .clear
+        window.isOpaque = false
         controller.onClose = { [weak self] in self?.disable() }
         controller.onCapture = { [weak self] point in self?.beginCapture(at: point) }
         controller.onList = { [weak self] in self?.showList() }
