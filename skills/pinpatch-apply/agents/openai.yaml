@@ -1,4 +1,0 @@
-interface:
-  display_name: "Apply PinPatch Notes"
-  short_description: "Apply pending PinPatch notes safely to local code"
-  default_prompt: "Use $pinpatch-apply to inspect pending PinPatch notes, update the code, verify changes, and record per-pin results."

@@ -1,0 +1,3 @@
+[submodule "skills/pinpatch-apply"]
+	path = skills/pinpatch-apply
+	url = https://github.com/idrane/pinpatch-apply-skill.git
