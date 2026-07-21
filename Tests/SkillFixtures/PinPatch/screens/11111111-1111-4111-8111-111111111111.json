@@ -1,0 +1,13 @@
+{
+  "screenID": "11111111-1111-4111-8111-111111111111",
+  "fingerprint": {
+    "framework": "uiKit",
+    "screenKind": "Fixture.DetailViewController",
+    "rawTitle": "301호",
+    "normalizedTitle": "301호",
+    "isModal": false,
+    "fingerprintVersion": 1
+  },
+  "firstSeenAt": "2026-07-21T00:00:00Z",
+  "firstSeenOrdinal": 1
+}
