@@ -154,6 +154,7 @@ actor PPStorage {
                 try syncDirectory(root.appendingPathComponent("screens", isDirectory: true))
                 committedScreenSnapshot = true
             }
+            try faultInjector?(.afterScreenSnapshotCommitBeforePinCommit)
             let destination = root.appendingPathComponent("pins/\(record.pinID.uuidString.lowercased())", isDirectory: true)
             guard !fm.fileExists(atPath: destination.path) else { throw PPStorageError.pinAlreadyExists }
             try fm.moveItem(at: stagedPin, to: destination)
@@ -257,6 +258,15 @@ actor PPStorage {
         }
     }
 
+    func copySnapshot(names: [String], to destination: URL) throws {
+        let root = try prepare()
+        for name in names {
+            let item = root.appendingPathComponent(name)
+            guard fm.fileExists(atPath: item.path) else { continue }
+            try fm.copyItem(at: item, to: destination.appendingPathComponent(name))
+        }
+    }
+
     func loadPinSummaries() throws -> [PPPinSummary] {
         let root = try prepare()
         let pinsURL = root.appendingPathComponent("pins", isDirectory: true)
@@ -293,15 +303,18 @@ actor PPStorage {
         let files = (try? fm.contentsOfDirectory(at: root.appendingPathComponent("screens"), includingPropertiesForKeys: nil)) ?? []
         var records = files.compactMap { try? readJSON(PPScreenRecord.self, at: $0) }
         var known = Set(records.map(\.screenID))
-        let pins = try? loadPinSummariesWithoutPrepare(root: root)
-        for summary in pins ?? [] where known.insert(summary.record.screenID).inserted {
+        var nextOrdinal = (records.map(\.firstSeenOrdinal).max() ?? 0) + 1
+        let pins = (try? loadPinSummariesWithoutPrepare(root: root)) ?? []
+        for summary in pins.sorted(by: { $0.record.createdAt < $1.record.createdAt })
+        where known.insert(summary.record.screenID).inserted {
             records.append(PPScreenRecord(
                 screenID: summary.record.screenID,
                 fingerprint: summary.record.fingerprint,
                 firstSeenAt: summary.record.createdAt,
-                firstSeenOrdinal: records.count + 1,
+                firstSeenOrdinal: nextOrdinal,
                 aliases: nil
             ))
+            nextOrdinal += 1
         }
         return records
     }
@@ -554,7 +567,13 @@ actor PPStorage {
         func ids(in name: String, extension ext: String? = nil) -> [UUID] {
             let files = (try? fm.contentsOfDirectory(at: root.appendingPathComponent(name), includingPropertiesForKeys: nil)) ?? []
             return files.compactMap { url in
-                let candidate = ext == nil ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent
+                let candidate: String
+                if let ext {
+                    guard url.pathExtension == ext else { return nil }
+                    candidate = url.deletingPathExtension().lastPathComponent
+                } else {
+                    candidate = url.lastPathComponent
+                }
                 return UUID(uuidString: candidate)
             }.sorted { $0.uuidString < $1.uuidString }
         }
@@ -578,5 +597,6 @@ enum PPStorageError: Error {
 
 enum PPStorageCheckpoint: Sendable, Equatable {
     case beforePinCommit
+    case afterScreenSnapshotCommitBeforePinCommit
     case afterRevisionCommitBeforeCurrentSwap
 }

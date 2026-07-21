@@ -6,7 +6,9 @@ final class PPOverlayWindow: UIWindow {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard let controller = overlayController else { return nil }
         let hit = super.hitTest(point, with: event)
-        controller.handleAmbientTouch(on: hit)
+        if event == nil || event?.type == .touches {
+            controller.handleAmbientTouch(on: hit)
+        }
         if controller.requiresExclusiveInput { return hit }
         guard let hit else { return nil }
         return controller.isInteractiveControl(hit) ? hit : nil

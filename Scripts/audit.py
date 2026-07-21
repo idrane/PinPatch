@@ -7,10 +7,6 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_FILES = sorted((ROOT / "Sources").rglob("*"))
-SOURCE_FILES = [path for path in SOURCE_FILES if path.suffix in {".swift", ".m", ".h"}]
-SOURCES = "\n".join(path.read_text(encoding="utf-8") for path in SOURCE_FILES)
-PACKAGE = (ROOT / "Package.swift").read_text(encoding="utf-8")
 
 
 def require(condition: bool, message: str) -> None:
@@ -21,6 +17,12 @@ def require(condition: bool, message: str) -> None:
 
 def main() -> int:
     try:
+        source_files = sorted(
+            path for path in (ROOT / "Sources").rglob("*") if path.suffix in {".swift", ".m", ".h"}
+        )
+        SOURCES = "\n".join(path.read_text(encoding="utf-8") for path in source_files)
+        PACKAGE = (ROOT / "Package.swift").read_text(encoding="utf-8")
+        SOURCE_FILES = source_files
         require("swift-tools-version: 5.9" in PACKAGE, "Swift tools version is 5.9")
         require(".iOS(.v17)" in PACKAGE, "minimum deployment is iOS 17")
         require("type: .dynamic" in PACKAGE, "product is a dynamic library")
@@ -60,7 +62,7 @@ def main() -> int:
         require(re.search(r"[\"/]result/", SOURCES) is None, "no singular result directory path exists")
         require('"results"' in SOURCES, "canonical results directory is present")
         return 0
-    except AssertionError as error:
+    except (AssertionError, OSError, UnicodeDecodeError) as error:
         print(f"audit failed: {error}", file=sys.stderr)
         return 1
 

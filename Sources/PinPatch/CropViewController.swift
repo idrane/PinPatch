@@ -9,6 +9,7 @@ final class PPCropViewController: UIViewController {
     private let initialFrame: CGRect?
     private let imageView = UIImageView()
     private let cropView = PPCropSelectionView()
+    private var lastDisplayRect: CGRect = .zero
 
     init(image: UIImage, initialFrame: CGRect?) {
         self.image = image
@@ -56,8 +57,15 @@ final class PPCropViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        guard !cropView.hasInitialRect else { return }
         let display = imageDisplayRect()
+        guard !cropView.hasInitialRect else {
+            if display != lastDisplayRect, display.width > 0, display.height > 0 {
+                cropView.remap(from: lastDisplayRect, to: display)
+                lastDisplayRect = display
+            }
+            return
+        }
+        lastDisplayRect = display
         var initial = display.insetBy(dx: display.width * 0.12, dy: display.height * 0.12)
         if let initialFrame, image.size.width > 0, image.size.height > 0 {
             let sx = display.width / image.size.width
@@ -155,6 +163,20 @@ private final class PPCropSelectionView: UIView {
         hasInitialRect = true
         setNeedsLayout()
         setNeedsDisplay()
+    }
+
+    func remap(from oldDisplay: CGRect, to newDisplay: CGRect) {
+        guard oldDisplay.width > 0, oldDisplay.height > 0 else {
+            configure(imageRect: newDisplay, cropRect: newDisplay)
+            return
+        }
+        let scaled = CGRect(
+            x: newDisplay.minX + (cropRect.minX - oldDisplay.minX) / oldDisplay.width * newDisplay.width,
+            y: newDisplay.minY + (cropRect.minY - oldDisplay.minY) / oldDisplay.height * newDisplay.height,
+            width: cropRect.width / oldDisplay.width * newDisplay.width,
+            height: cropRect.height / oldDisplay.height * newDisplay.height
+        )
+        configure(imageRect: newDisplay, cropRect: scaled.intersection(newDisplay))
     }
 
     override func layoutSubviews() {

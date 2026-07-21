@@ -47,7 +47,12 @@ final class PPPinFlowCoordinator {
     }
 
     private func finish(_ output: PPPinFlowOutput?) {
-        overlayController?.removeEmbeddedToolContent(animated: true) { [weak self] in
+        guard let overlayController else {
+            navigationController = nil
+            completion(output)
+            return
+        }
+        overlayController.removeEmbeddedToolContent(animated: true) { [weak self] in
             guard let self else { return }
             self.navigationController = nil
             self.completion(output)

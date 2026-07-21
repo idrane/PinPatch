@@ -83,9 +83,9 @@ final class PPListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let id = pinsByScreen[indexPath.section][indexPath.row].record.pinID
         let action = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completion in
             guard let self else { completion(false); return }
-            let id = self.pinsByScreen[indexPath.section][indexPath.row].record.pinID
             Task {
                 do {
                     try await PPStorage.shared.deletePin(id)
@@ -196,7 +196,11 @@ final class PPListViewController: UITableViewController {
 
     @objc private func linkSelected() {
         let selected = tableView.indexPathsForSelectedRows ?? []
-        let ids = selected.map { pinsByScreen[$0.section][$0.row].record.pinID }
+        let ids = selected.compactMap { path -> UUID? in
+            guard pinsByScreen.indices.contains(path.section),
+                  pinsByScreen[path.section].indices.contains(path.row) else { return nil }
+            return pinsByScreen[path.section][path.row].record.pinID
+        }
         guard ids.count >= 2 else { return }
         let controller = PPGroupInstructionViewController(pinCount: ids.count)
         let navigation = UINavigationController(rootViewController: controller)

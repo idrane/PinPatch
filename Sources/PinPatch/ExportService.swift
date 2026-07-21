@@ -81,12 +81,7 @@ actor PPExportService {
         let source = root.appendingPathComponent("PinPatch", isDirectory: true)
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try Data((try await markdown()).utf8).write(to: source.appendingPathComponent("PinPatch.md"), options: [.atomic])
-        let storageRoot = try await storage.prepare()
-        for name in ["manifest.json", "screens", "pins", "groups", "results"] {
-            let item = storageRoot.appendingPathComponent(name)
-            guard FileManager.default.fileExists(atPath: item.path) else { continue }
-            try FileManager.default.copyItem(at: item, to: source.appendingPathComponent(name))
-        }
+        try await storage.copySnapshot(names: ["manifest.json", "screens", "pins", "groups", "results"], to: source)
         let destination = root.appendingPathComponent("PinPatch.zip")
         var coordinationError: NSError?
         var copyError: Error?

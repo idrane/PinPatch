@@ -55,6 +55,34 @@ final class StorageTests: XCTestCase {
         }
     }
 
+    func testFailedPinCommitRollsBackCommittedScreenSnapshot() async throws {
+        enum Injected: Error { case stop }
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = PPStorage(rootURL: root) { point in
+            if point == .afterScreenSnapshotCommitBeforePinCommit { throw Injected.stop }
+        }
+        let screen = try await storage.resolveScreen(fingerprint())
+        let record = pin(screenID: screen.screenID)
+        do {
+            try await storage.savePin(
+                screen: screen,
+                record: record,
+                note: "Please change the color",
+                screenshot: Data("screen".utf8),
+                crop: Data("crop".utf8)
+            )
+            XCTFail("The injected failure must escape the transaction")
+        } catch is Injected {
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("pins/\(record.pinID.uuidString.lowercased())").path
+            ))
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("screens/\(screen.screenID.uuidString.lowercased())/screen.png").path
+            ))
+        }
+    }
+
     func testScreenSnapshotIsSharedUntilLastPinIsDeleted() async throws {
         let root = temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }

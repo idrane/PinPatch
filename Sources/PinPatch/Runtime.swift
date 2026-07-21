@@ -152,7 +152,10 @@ final class PPSceneSession {
                         orientation: scene.interfaceOrientation.rawValue,
                         displayScale: appWindow.screen.scale
                     )
-                    guard let screenData = screenshot.pngData(), let cropData = output.crop.pngData() else { return }
+                    guard let screenData = screenshot.pngData(), let cropData = output.crop.pngData() else {
+                        await MainActor.run { controller?.showNonBlockingError("Unable to save the pin") }
+                        return
+                    }
                     try await PPStorage.shared.savePin(screen: screen, record: record, note: output.note, screenshot: screenData, crop: cropData)
                 } catch {
                     await MainActor.run { controller?.showNonBlockingError("Unable to save the pin") }
