@@ -17,7 +17,7 @@ final class OverlayTests: XCTestCase {
         XCTAssertNil(window.hitTest(CGPoint(x: 20, y: 600), with: nil))
         let bubble = controller.view.subviews
             .compactMap { $0 as? UIButton }
-            .first(where: { $0.accessibilityLabel == "PinPatch 메뉴" })
+            .first(where: { $0.accessibilityLabel == "PinPatch menu" })
         XCTAssertNotNil(bubble)
         if let bubble {
             XCTAssertTrue(window.hitTest(bubble.center, with: nil) === bubble)
@@ -87,10 +87,10 @@ final class OverlayTests: XCTestCase {
         controller.view.layoutIfNeeded()
         guard let help = descendants(of: controller.view)
             .compactMap({ $0 as? UIButton })
-            .first(where: { $0.accessibilityLabel == "버튼 설명" }),
+            .first(where: { $0.accessibilityLabel == "Button Information" }),
               let helpLabel = descendants(of: controller.view)
             .compactMap({ $0 as? UILabel })
-            .first(where: { $0.text == "버튼 설명" }) else {
+            .first(where: { $0.text == "Button Information" }) else {
             XCTFail("help control is missing")
             return
         }

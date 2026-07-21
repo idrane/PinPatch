@@ -1,9 +1,9 @@
 import Foundation
 
 enum PPTitleNormalizer {
-    private static let preserveSuffixPattern = #"(?<![A-Za-z0-9])\d+\s*(?:호|층|단계|번\s*방)(?![A-Za-z0-9])"#
+    private static let preserveSuffixPattern = #"(?i)\b(?:(?:room|floor|stage|apartment)\s*\d+|\d+\s*(?:room|floor|stage|apartment))\b"#
     private static let uuidPattern = #"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"#
-    private static let orderPattern = #"(?i)(?:\border\s*(?:number|no\.?|id)?|주문\s*(?:번호|id))\s*[:#-]?\s*[\p{L}\p{N}-]{3,}"#
+    private static let orderPattern = #"(?i)\border\s*(?:number|no\.?|id)?\s*[:#-]?\s*[\p{L}\p{N}-]{3,}"#
     private static let idPattern = #"(?i)\bid\s*(?:[:#-]|\s)\s*[A-Z0-9-]{2,}\b"#
     private static let datePattern = #"\b(?:19|20)\d{2}[./-](?:0?[1-9]|1[0-2])[./-](?:0?[1-9]|[12]\d|3[01])\b"#
     private static let timePattern = #"\b(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?\b"#

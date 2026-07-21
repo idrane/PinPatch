@@ -17,7 +17,7 @@ final class PPInfoViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "현재 화면 정보"
+        title = "Current Screen Info"
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .close, primaryAction: UIAction { [weak self] _ in self?.onClose?() })
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Info")
@@ -37,11 +37,11 @@ final class PPInfoViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        "화면 식별"
+        "Screen Identification"
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        "정규화된 화면 이름만 같은 화면을 다시 찾는 데 사용됩니다."
+        "Only the normalized screen name is used to find this screen again."
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -60,9 +60,9 @@ final class PPInfoViewController: UITableViewController {
 
     private func row(at indexPath: IndexPath) -> (title: String, value: String, symbol: String) {
         switch (indexPath.section, indexPath.row) {
-        case (0, 0): return ("화면 이름", fingerprint.rawTitle ?? "제목 없음", "textformat")
-        case (0, 1): return ("Screen ID", screenID?.uuidString.lowercased() ?? "아직 저장되지 않음", "number")
-        default: return ("지문 버전", "v\(fingerprint.fingerprintVersion)", "checkmark.seal")
+        case (0, 0): return ("Screen Name", fingerprint.rawTitle ?? "Untitled", "textformat")
+        case (0, 1): return ("Screen ID", screenID?.uuidString.lowercased() ?? "Not saved yet", "number")
+        default: return ("Fingerprint Version", "v\(fingerprint.fingerprintVersion)", "checkmark.seal")
         }
     }
 }

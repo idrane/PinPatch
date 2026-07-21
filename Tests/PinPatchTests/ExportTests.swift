@@ -32,7 +32,7 @@ final class ExportTests: XCTestCase {
                 moduleName: nil,
                 controllerChain: [],
                 accessibilityIdentifier: "accent",
-                accessibilityLabel: "강조색",
+                accessibilityLabel: "Accent color",
                 accessibilityValue: nil,
                 accessibilityTraits: 0,
                 controlActions: []
@@ -44,7 +44,7 @@ final class ExportTests: XCTestCase {
         try await storage.savePin(
             screen: screen,
             record: pin,
-            note: "두 요소를 같은 색으로",
+            note: "Make both elements the same color",
             screenshot: Data("screen".utf8),
             crop: Data("crop".utf8)
         )

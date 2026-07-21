@@ -24,7 +24,7 @@ actor PPExportService {
         for (screenIndex, screen) in activeScreens.enumerated() {
             let matching = pins.filter { $0.record.screenID == screen.screenID }
             guard !matching.isEmpty else { continue }
-            lines.append("## 화면 \(screenIndex + 1): \(screen.fingerprint.rawTitle ?? "제목 없음")")
+            lines.append("## Screen \(screenIndex + 1): \(screen.fingerprint.rawTitle ?? "Untitled")")
             lines.append("")
             lines.append("- screen_id: `\(screen.screenID.uuidString.lowercased())`")
             lines.append("")
@@ -45,17 +45,17 @@ actor PPExportService {
                 }
                 lines.append("")
                 lines.append(pin.note)
-                if let result = pin.result { lines.append("\n결과: \(result.summary)") }
+                if let result = pin.result { lines.append("\nResult: \(result.summary)") }
                 lines.append("")
             }
         }
         if !groups.isEmpty {
-            lines.append("## 링크")
+            lines.append("## Links")
             lines.append("")
             for group in groups {
                 lines.append("### \(group.groupID.uuidString.lowercased())")
                 lines.append("")
-                lines.append("핀: \(group.pinIDs.map { "`\($0.uuidString.lowercased())`" }.joined(separator: ", "))")
+                lines.append("Pins: \(group.pinIDs.map { "`\($0.uuidString.lowercased())`" }.joined(separator: ", "))")
                 lines.append("")
                 lines.append(group.instruction)
                 lines.append("")

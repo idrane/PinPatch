@@ -39,7 +39,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
     private let screenInfoButton = UIButton(type: .system)
     private let helpButton = UIButton(type: .system)
     private let closeButton = UIButton(type: .system)
-    private let editStatus = PPToastView(symbol: "hand.tap.fill", title: "핀 추가 모드", detail: "고치고 싶은 곳을 탭하세요")
+    private let editStatus = PPToastView(symbol: "hand.tap.fill", title: "Add Pin Mode", detail: "Tap the area you want to change")
     private lazy var captureRecognizer = UITapGestureRecognizer(target: self, action: #selector(captureTap(_:)))
     private var introView: UIView?
     private var isMenuOpen = false
@@ -112,7 +112,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         let key = "dev.pinpatch.didShowIntro"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
-        let toast = PPToastView(symbol: "pin.fill", title: "PinPatch", detail: "탭해서 핀을 남겨보세요")
+        let toast = PPToastView(symbol: "pin.fill", title: "PinPatch", detail: "Tap to leave a pin")
         toast.isAccessibilityElement = false
         toast.frame = CGRect(x: max(16, view.bounds.width - 242), y: 88, width: 226, height: 62)
         toast.autoresizingMask = [.flexibleLeftMargin, .flexibleBottomMargin]
@@ -225,8 +225,8 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         config.baseForegroundColor = .white
         config.cornerStyle = .capsule
         bubbleButton.configuration = config
-        bubbleButton.accessibilityLabel = "PinPatch 메뉴"
-        bubbleButton.accessibilityHint = "핀 추가와 목록 메뉴를 엽니다"
+        bubbleButton.accessibilityLabel = "PinPatch menu"
+        bubbleButton.accessibilityHint = "Opens the add-pin and list menus"
         bubbleButton.frame = CGRect(x: view.bounds.width - 72, y: 20, width: 56, height: 56)
         bubbleButton.autoresizingMask = [.flexibleLeftMargin, .flexibleBottomMargin]
         bubbleButton.layer.cornerRadius = 28
@@ -250,11 +250,11 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         actionContainer.isOpaque = false
         view.insertSubview(actionContainer, belowSubview: bubbleButton)
 
-        configureActionButton(editButton, symbol: "pin.fill", title: "핀 추가", tint: PPTheme.pin, selector: #selector(toggleEdit))
-        configureActionButton(listButton, symbol: "list.bullet.rectangle.fill", title: "핀 목록", tint: PPTheme.accent, selector: #selector(openList))
-        configureActionButton(screenInfoButton, symbol: "rectangle.and.text.magnifyingglass", title: "현재 화면 정보", tint: .systemTeal, selector: #selector(openInfo))
-        configureActionButton(helpButton, symbol: "questionmark", title: "버튼 설명", tint: .systemOrange, selector: #selector(toggleActionInfo))
-        configureActionButton(closeButton, symbol: "power", title: "PinPatch 끄기", tint: .secondaryLabel, selector: #selector(closeTool))
+        configureActionButton(editButton, symbol: "pin.fill", title: "Add Pin", tint: PPTheme.pin, selector: #selector(toggleEdit))
+        configureActionButton(listButton, symbol: "list.bullet.rectangle.fill", title: "Pin List", tint: PPTheme.accent, selector: #selector(openList))
+        configureActionButton(screenInfoButton, symbol: "rectangle.and.text.magnifyingglass", title: "Current Screen Info", tint: .systemTeal, selector: #selector(openInfo))
+        configureActionButton(helpButton, symbol: "questionmark", title: "Button Information", tint: .systemOrange, selector: #selector(toggleActionInfo))
+        configureActionButton(closeButton, symbol: "power", title: "Turn Off PinPatch", tint: .secondaryLabel, selector: #selector(closeTool))
 
         for button in actionButtons {
             button.isHidden = true
@@ -304,7 +304,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
 
     private func setMenuOpen(_ open: Bool, animated: Bool) {
         isMenuOpen = open
-        bubbleButton.accessibilityValue = open ? "열림" : "닫힘"
+        bubbleButton.accessibilityValue = open ? "Open" : "Closed"
         if !open { setActionInfoVisible(false, animated: animated) }
         if open {
             layoutFloatingControls()
@@ -348,7 +348,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         var config = editButton.configuration
         config?.image = PPTheme.symbol(isPinEditing ? "checkmark.circle.fill" : "pin.fill", pointSize: 17)
         editButton.configuration = config
-        editButton.accessibilityLabel = isPinEditing ? "핀 추가 끝내기" : "핀 추가"
+        editButton.accessibilityLabel = isPinEditing ? "Finish Adding Pins" : "Add Pin"
         actionInfoViews[editButton]?.text = editButton.accessibilityLabel
         bubbleButton.configuration?.baseBackgroundColor = isPinEditing ? PPTheme.pin : PPTheme.accent
         bubbleButton.configuration?.image = PPTheme.symbol(isPinEditing ? "hand.tap.fill" : "pin.fill", pointSize: 19, weight: .bold)

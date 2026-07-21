@@ -10,8 +10,8 @@ final class PPListViewController: UITableViewController {
     private var pinsByScreen: [[PPPinSummary]] = []
     private lazy var linkButton = UIBarButtonItem(image: PPTheme.symbol("link"), style: .plain, target: self, action: #selector(toggleLinkMode))
     private lazy var exportButton = UIBarButtonItem(image: PPTheme.symbol("square.and.arrow.up"), style: .plain, target: self, action: #selector(showExportMenu))
-    private lazy var linkSelectedButton = UIBarButtonItem(title: "핀 연결", style: .done, target: self, action: #selector(linkSelected))
-    private lazy var selectionLabel = UIBarButtonItem(title: "2개 이상 선택", style: .plain, target: nil, action: nil)
+    private lazy var linkSelectedButton = UIBarButtonItem(title: "Link Pins", style: .done, target: self, action: #selector(linkSelected))
+    private lazy var selectionLabel = UIBarButtonItem(title: "Select 2 or More", style: .plain, target: nil, action: nil)
     private lazy var deleteAllButton = UIBarButtonItem(image: PPTheme.symbol("trash"), style: .plain, target: self, action: #selector(confirmDeleteAll))
 
     init() {
@@ -23,7 +23,7 @@ final class PPListViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "핀 목록"
+        title = "Pins"
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
         view.backgroundColor = .systemGroupedBackground
@@ -47,13 +47,13 @@ final class PPListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        let title = screens[section].fingerprint.rawTitle ?? "제목 없음"
-        return "화면 \(section + 1)  ·  \(title)"
+        let title = screens[section].fingerprint.rawTitle ?? "Untitled"
+        return "Screen \(section + 1)  ·  \(title)"
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         let count = pinsByScreen[section].count
-        return "\(count)개의 핀"
+        return "\(count) pins"
     }
 
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat { 104 }
@@ -83,7 +83,7 @@ final class PPListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let action = UIContextualAction(style: .destructive, title: "삭제") { [weak self] _, _, completion in
+        let action = UIContextualAction(style: .destructive, title: "Delete") { [weak self] _, _, completion in
             guard let self else { completion(false); return }
             let id = self.pinsByScreen[indexPath.section][indexPath.row].record.pinID
             Task {
@@ -96,7 +96,7 @@ final class PPListViewController: UITableViewController {
                         completion(true)
                     }
                 } catch {
-                    await MainActor.run { self.showToast(symbol: "exclamationmark.triangle.fill", title: "삭제하지 못했어요"); completion(false) }
+                    await MainActor.run { self.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t delete pin"); completion(false) }
                 }
             }
         }
@@ -127,8 +127,8 @@ final class PPListViewController: UITableViewController {
         var configuration = UIContentUnavailableConfiguration.empty()
         configuration.image = PPTheme.symbol("pin.slash", pointSize: 30)
         configuration.imageProperties.tintColor = PPTheme.accent
-        configuration.text = "아직 남긴 핀이 없어요"
-        configuration.secondaryText = "목록을 닫고 핀 추가 모드에서\n고치고 싶은 곳을 탭해보세요."
+        configuration.text = "No pins yet"
+        configuration.secondaryText = "Close this list, then tap the area you want to change\nin Add Pin mode."
         contentUnavailableConfiguration = configuration
     }
 
@@ -138,8 +138,8 @@ final class PPListViewController: UITableViewController {
             previewImage: UIImage(contentsOfFile: pin.cropURL.path),
             initialTag: pin.record.tag,
             initialText: pin.note,
-            title: "메모 수정",
-            saveTitle: "변경사항 저장"
+            title: "Edit Note",
+            saveTitle: "Save Changes"
         )
         let navigation = UINavigationController(rootViewController: controller)
         navigation.modalPresentationStyle = .pageSheet
@@ -158,7 +158,7 @@ final class PPListViewController: UITableViewController {
                         self?.onChanged?()
                     }
                 } catch {
-                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "메모를 저장하지 못했어요") }
+                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t save note") }
                 }
             }
         }
@@ -171,23 +171,23 @@ final class PPListViewController: UITableViewController {
         navigationItem.leftBarButtonItem?.isEnabled = !entering
         exportButton.isEnabled = !entering
         linkButton.image = PPTheme.symbol(entering ? "xmark" : "link")
-        linkButton.accessibilityLabel = entering ? "선택 취소" : "핀 연결"
+        linkButton.accessibilityLabel = entering ? "Cancel selection" : "Link pins"
         updateToolbar()
         if entering {
-            showToast(symbol: "checkmark.circle", title: "연결할 핀을 선택하세요", detail: "서로 다른 화면의 핀도 선택할 수 있어요")
+            showToast(symbol: "checkmark.circle", title: "Select pins to link", detail: "You can select pins from different screens")
         }
     }
 
     private func updateToolbar() {
         let selectedCount = tableView.indexPathsForSelectedRows?.count ?? 0
         if tableView.isEditing {
-            selectionLabel.title = selectedCount == 0 ? "2개 이상 선택" : "\(selectedCount)개 선택"
+            selectionLabel.title = selectedCount == 0 ? "Select 2 or More" : "\(selectedCount) Selected"
             selectionLabel.isEnabled = false
             linkSelectedButton.isEnabled = selectedCount >= 2
             toolbarItems = [selectionLabel, .flexibleSpace(), linkSelectedButton]
         } else {
             let count = pinsByScreen.reduce(0) { $0 + $1.count }
-            let summary = UIBarButtonItem(title: count == 0 ? "저장된 핀 없음" : "총 \(count)개의 핀", style: .plain, target: nil, action: nil)
+            let summary = UIBarButtonItem(title: count == 0 ? "No Saved Pins" : "\(count) Pins Total", style: .plain, target: nil, action: nil)
             summary.isEnabled = false
             deleteAllButton.isEnabled = count > 0
             toolbarItems = [summary, .flexibleSpace(), deleteAllButton]
@@ -217,11 +217,11 @@ final class PPListViewController: UITableViewController {
                         self?.exportButton.isEnabled = true
                         self?.linkButton.image = PPTheme.symbol("link")
                         self?.updateToolbar()
-                        self?.showToast(symbol: "link.circle.fill", title: "\(ids.count)개 핀을 연결했어요")
+                        self?.showToast(symbol: "link.circle.fill", title: "Linked \(ids.count) pins")
                         PPTheme.successFeedback()
                     }
                 } catch {
-                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "핀을 연결하지 못했어요") }
+                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t link pins") }
                 }
             }
         }
@@ -229,23 +229,23 @@ final class PPListViewController: UITableViewController {
     }
 
     @objc private func showExportMenu() {
-        let sheet = UIAlertController(title: "내보내기", message: "AI 에이전트나 팀에 전달할 형식을 선택하세요.", preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Markdown 복사", style: .default) { [weak self] _ in
+        let sheet = UIAlertController(title: "Export", message: "Choose a format to share with an AI agent or your team.", preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Copy Markdown", style: .default) { [weak self] _ in
             Task {
                 guard let value = try? await PPExportService.shared.markdown() else {
-                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "복사하지 못했어요") }
+                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t copy Markdown") }
                     return
                 }
                 await MainActor.run {
                     UIPasteboard.general.string = value
-                    self?.showToast(symbol: "doc.on.doc.fill", title: "Markdown을 복사했어요")
+                    self?.showToast(symbol: "doc.on.doc.fill", title: "Copied Markdown")
                     PPTheme.successFeedback()
                 }
             }
         })
-        sheet.addAction(UIAlertAction(title: "Markdown 파일 공유", style: .default) { [weak self] _ in self?.share(kind: .markdown) })
-        sheet.addAction(UIAlertAction(title: "스크린샷 포함 ZIP 공유", style: .default) { [weak self] _ in self?.share(kind: .zip) })
-        sheet.addAction(UIAlertAction(title: "취소", style: .cancel))
+        sheet.addAction(UIAlertAction(title: "Share Markdown File", style: .default) { [weak self] _ in self?.share(kind: .markdown) })
+        sheet.addAction(UIAlertAction(title: "Share ZIP with Screenshots", style: .default) { [weak self] _ in self?.share(kind: .zip) })
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         if let popover = sheet.popoverPresentationController { popover.barButtonItem = exportButton }
         present(sheet, animated: true)
     }
@@ -260,7 +260,7 @@ final class PPListViewController: UITableViewController {
             case .zip: artifact = try? await PPExportService.shared.zip()
             }
             guard let artifact else {
-                await MainActor.run { self.showToast(symbol: "exclamationmark.triangle.fill", title: "파일을 만들지 못했어요") }
+                await MainActor.run { self.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t create file") }
                 return
             }
             await MainActor.run {
@@ -276,19 +276,19 @@ final class PPListViewController: UITableViewController {
     }
 
     @objc private func confirmDeleteAll() {
-        let alert = UIAlertController(title: "모든 핀을 삭제할까요?", message: "핀, 메모, 링크와 처리 결과가 모두 삭제되며 되돌릴 수 없습니다.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "모두 삭제", style: .destructive) { [weak self] _ in
+        let alert = UIAlertController(title: "Delete all pins?", message: "All pins, notes, links, and results will be permanently deleted.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete All", style: .destructive) { [weak self] _ in
             Task {
                 do {
                     try await PPStorage.shared.deleteAll()
                     await MainActor.run {
                         self?.reload()
                         self?.onChanged?()
-                        self?.showToast(symbol: "trash.fill", title: "모든 핀을 삭제했어요")
+                        self?.showToast(symbol: "trash.fill", title: "Deleted all pins")
                     }
                 } catch {
-                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "삭제하지 못했어요") }
+                    await MainActor.run { self?.showToast(symbol: "exclamationmark.triangle.fill", title: "Couldn’t delete pins") }
                 }
             }
         })
@@ -391,7 +391,7 @@ private final class PPPinCell: UITableViewCell {
         representedPinID = pin.record.pinID
         numberLabel.text = displayNumber
         let tag = pin.record.tag
-        tagLabel.text = tag?.localizedTitle ?? "메모"
+        tagLabel.text = tag?.localizedTitle ?? "Note"
         tagLabel.textColor = tag?.tintColor ?? PPTheme.accent
         noteLabel.text = pin.note
         thumbnailView.image = PPTheme.symbol("photo", pointSize: 22)
@@ -400,13 +400,13 @@ private final class PPPinCell: UITableViewCell {
         if pin.result == nil {
             statusView.image = PPTheme.symbol("chevron.right", pointSize: 14)
             statusView.tintColor = .tertiaryLabel
-            accessibilityValue = "미처리"
+            accessibilityValue = "Pending"
         } else {
             statusView.image = PPTheme.symbol("checkmark.circle.fill", pointSize: 19)
             statusView.tintColor = .systemGreen
-            accessibilityValue = "처리 완료"
+            accessibilityValue = "Complete"
         }
-        accessibilityLabel = "핀 \(displayNumber), \(tag?.localizedTitle ?? "메모"), \(pin.note)"
+        accessibilityLabel = "Pin \(displayNumber), \(tag?.localizedTitle ?? "Note"), \(pin.note)"
 
         let id = pin.record.pinID
         let url = pin.cropURL
@@ -460,17 +460,17 @@ private final class PPGroupInstructionViewController: UIViewController, UITextVi
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemGroupedBackground
-        title = "공통 지시"
+        title = "Shared Instruction"
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { [weak self] _ in self?.onCancel?() })
 
         let icon = UIImageView(image: PPTheme.symbol("link.circle.fill", pointSize: 34))
         icon.tintColor = PPTheme.accent
         let titleLabel = UILabel()
-        titleLabel.text = "\(pinCount)개 핀을 한 요청으로 연결"
+        titleLabel.text = "Link \(pinCount) pins in one request"
         titleLabel.font = .preferredFont(forTextStyle: .title3).withWeight(.bold)
         titleLabel.numberOfLines = 0
         let detail = UILabel()
-        detail.text = "모든 핀에 함께 적용할 내용을 적어주세요."
+        detail.text = "Describe what should be applied to all selected pins."
         detail.font = .preferredFont(forTextStyle: .subheadline)
         detail.textColor = .secondaryLabel
         detail.numberOfLines = 0
@@ -482,7 +482,7 @@ private final class PPGroupInstructionViewController: UIViewController, UITextVi
         textView.font = .preferredFont(forTextStyle: .body)
         textView.delegate = self
         textView.translatesAutoresizingMaskIntoConstraints = false
-        placeholder.text = "예: 선택한 버튼들을 모두 같은 색과 높이로 맞춰줘"
+        placeholder.text = "For example: Make all selected buttons the same color and height"
         placeholder.font = .preferredFont(forTextStyle: .body)
         placeholder.textColor = .placeholderText
         placeholder.numberOfLines = 0
@@ -491,7 +491,7 @@ private final class PPGroupInstructionViewController: UIViewController, UITextVi
         card.addSubview(placeholder)
 
         var config = UIButton.Configuration.filled()
-        config.title = "핀 연결하기"
+        config.title = "Link Pins"
         config.image = PPTheme.symbol("link", pointSize: 15, weight: .bold)
         config.imagePadding = 8
         config.baseBackgroundColor = PPTheme.accent

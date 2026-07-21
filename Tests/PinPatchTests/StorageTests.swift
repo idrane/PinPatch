@@ -40,7 +40,7 @@ final class StorageTests: XCTestCase {
             try await storage.savePin(
                 screen: screen,
                 record: record,
-                note: "색을 바꿔주세요",
+                note: "Please change the color",
                 screenshot: Data("screen".utf8),
                 crop: Data("crop".utf8)
             )
@@ -65,7 +65,7 @@ final class StorageTests: XCTestCase {
         let screenImage = root.appendingPathComponent("screens/\(screen.screenID.uuidString.lowercased())/screen.png")
 
         try await storage.savePin(
-            screen: screen, record: first, note: "첫 메모",
+            screen: screen, record: first, note: "First note",
             screenshot: Data("first screen".utf8), crop: Data("first crop".utf8)
         )
         XCTAssertEqual(try Data(contentsOf: screenImage), Data("first screen".utf8))
@@ -74,7 +74,7 @@ final class StorageTests: XCTestCase {
         ))
 
         try await storage.savePin(
-            screen: screen, record: second, note: "두 번째 메모",
+            screen: screen, record: second, note: "Second note",
             screenshot: Data("second screen".utf8), crop: Data("second crop".utf8)
         )
         XCTAssertEqual(try Data(contentsOf: screenImage), Data("first screen".utf8))
@@ -92,7 +92,7 @@ final class StorageTests: XCTestCase {
         let screen = try await initial.resolveScreen(fingerprint())
         let record = pin(screenID: screen.screenID)
         try await initial.savePin(
-            screen: screen, record: record, note: "이전 메모",
+            screen: screen, record: record, note: "Previous note",
             screenshot: Data("legacy screen".utf8), crop: Data("crop".utf8)
         )
 
@@ -117,7 +117,7 @@ final class StorageTests: XCTestCase {
         try await initialStorage.savePin(
             screen: screen,
             record: original,
-            note: "원래 메모",
+            note: "Original note",
             screenshot: Data("screen".utf8),
             crop: Data("crop".utf8)
         )
@@ -126,7 +126,7 @@ final class StorageTests: XCTestCase {
             if point == .afterRevisionCommitBeforeCurrentSwap { throw Injected.stop }
         }
         do {
-            try await interrupted.updateNote(pinID: original.pinID, note: "새 메모", tag: .text)
+            try await interrupted.updateNote(pinID: original.pinID, note: "New note", tag: .text)
             XCTFail("The injected failure must interrupt before current.json changes")
         } catch is Injected {}
 
@@ -134,7 +134,7 @@ final class StorageTests: XCTestCase {
         _ = try await recovered.prepare()
         let summaries = try await recovered.loadPinSummaries()
         XCTAssertEqual(summaries.first?.record.revisionID, original.revisionID)
-        XCTAssertEqual(summaries.first?.note, "원래 메모")
+        XCTAssertEqual(summaries.first?.note, "Original note")
         let revisions = try FileManager.default.contentsOfDirectory(
             at: root.appendingPathComponent("pins/\(original.pinID.uuidString.lowercased())/revisions"),
             includingPropertiesForKeys: nil
@@ -151,7 +151,7 @@ final class StorageTests: XCTestCase {
         try await storage.savePin(
             screen: screen,
             record: record,
-            note: "간격 수정",
+            note: "Adjust spacing",
             screenshot: Data("screen".utf8),
             crop: Data("crop".utf8)
         )
@@ -172,22 +172,22 @@ final class StorageTests: XCTestCase {
         let root = temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let storage = PPStorage(rootURL: root)
-        let firstScreen = try await storage.resolveScreen(fingerprint(title: "301호"))
-        let secondScreen = try await storage.resolveScreen(fingerprint(title: "302호"))
+        let firstScreen = try await storage.resolveScreen(fingerprint(title: "Room 301"))
+        let secondScreen = try await storage.resolveScreen(fingerprint(title: "Room 302"))
         let firstPin = pin(screenID: firstScreen.screenID, fingerprint: firstScreen.fingerprint)
         let secondPin = pin(screenID: secondScreen.screenID, fingerprint: secondScreen.fingerprint)
         for (screen, record) in [(firstScreen, firstPin), (secondScreen, secondPin)] {
             try await storage.savePin(
                 screen: screen,
                 record: record,
-                note: "같은 색으로",
+                note: "Use the same color",
                 screenshot: Data("screen".utf8),
                 crop: Data("crop".utf8)
             )
         }
         let group = try await storage.createGroup(
             pinIDs: [secondPin.pinID, firstPin.pinID],
-            instruction: "두 핀을 같은 강조색으로"
+            instruction: "Use the same accent color for both pins"
         )
         XCTAssertEqual(Set(group.pinIDs), Set([firstPin.pinID, secondPin.pinID]))
         XCTAssertTrue(FileManager.default.fileExists(
@@ -204,7 +204,7 @@ final class StorageTests: XCTestCase {
             .appendingPathComponent("PinPatchTests-\(UUID().uuidString)", isDirectory: true)
     }
 
-    private func fingerprint(version: Int = 1, title: String = "301호") -> PPScreenFingerprint {
+    private func fingerprint(version: Int = 1, title: String = "Room 301") -> PPScreenFingerprint {
         PPScreenFingerprint(
             rawTitle: title,
             normalizedTitle: title,
@@ -229,7 +229,7 @@ final class StorageTests: XCTestCase {
                 moduleName: "UIKit",
                 controllerChain: ["Fixture.DetailViewController"],
                 accessibilityIdentifier: "save-button",
-                accessibilityLabel: "저장",
+                accessibilityLabel: "Save",
                 accessibilityValue: nil,
                 accessibilityTraits: 1,
                 controlActions: ["save:"]

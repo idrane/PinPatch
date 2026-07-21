@@ -3,8 +3,8 @@
   "fingerprint": {
     "framework": "uiKit",
     "screenKind": "Fixture.DetailViewController",
-    "rawTitle": "301호",
-    "normalizedTitle": "301호",
+    "rawTitle": "Room 301",
+    "normalizedTitle": "Room 301",
     "isModal": false,
     "fingerprintVersion": 1
   },

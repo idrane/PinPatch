@@ -13,13 +13,13 @@ enum PPTag: String, CaseIterable, Codable, Sendable {
 
     var localizedTitle: String {
         switch self {
-        case .bug: return "버그"
-        case .color: return "색상"
-        case .size: return "크기"
-        case .spacing: return "간격"
-        case .text: return "텍스트"
-        case .behavior: return "동작"
-        case .other: return "기타"
+        case .bug: return "Bug"
+        case .color: return "Color"
+        case .size: return "Size"
+        case .spacing: return "Spacing"
+        case .text: return "Text"
+        case .behavior: return "Behavior"
+        case .other: return "Other"
         }
     }
 }

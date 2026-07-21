@@ -22,11 +22,11 @@ final class PPCropViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        title = "영역 선택"
+        title = "Select Area"
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { [weak self] _ in self?.onCancel?() })
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "다음", style: .done, target: self, action: #selector(confirm))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Next", style: .done, target: self, action: #selector(confirm))
 
-        let instruction = PPToastView(symbol: "crop", title: "네 귀퉁이로 영역을 조절하세요")
+        let instruction = PPToastView(symbol: "crop", title: "Adjust the area using the four corners")
         instruction.isUserInteractionEnabled = false
         instruction.isAccessibilityElement = false
         instruction.translatesAutoresizingMaskIntoConstraints = false
@@ -125,7 +125,7 @@ private final class PPCropSelectionView: UIView {
             let handle = UIView()
             handle.backgroundColor = .clear
             handle.isAccessibilityElement = true
-            handle.accessibilityLabel = "자르기 영역 귀퉁이"
+            handle.accessibilityLabel = "Crop area corner"
             handle.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(dragHandle(_:))))
             let knob = UIView()
             knob.backgroundColor = .white

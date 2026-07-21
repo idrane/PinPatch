@@ -77,8 +77,8 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
         previewImage: UIImage? = nil,
         initialTag: PPTag? = nil,
         initialText: String = "",
-        title: String = "요청 작성",
-        saveTitle: String = "핀 저장"
+        title: String = "Create Request",
+        saveTitle: String = "Save Pin"
     ) {
         self.previewImage = previewImage
         self.initialText = initialText
@@ -156,18 +156,18 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
 
     private func makeHeader() -> UIView {
         let eyebrow = UILabel()
-        eyebrow.text = previewImage == nil ? "메모 수정" : "새로운 수정 요청"
+        eyebrow.text = previewImage == nil ? "Edit Note" : "New Change Request"
         eyebrow.font = .preferredFont(forTextStyle: .caption1)
         eyebrow.textColor = PPTheme.accent
 
         let title = UILabel()
-        title.text = "무엇을 바꾸면 될까요?"
+        title.text = "What would you like to change?"
         title.font = .preferredFont(forTextStyle: .title2).withWeight(.bold)
         title.textColor = .label
         title.numberOfLines = 0
 
         let detail = UILabel()
-        detail.text = "AI가 바로 이해할 수 있게 원하는 결과를 구체적으로 적어주세요."
+        detail.text = "Describe the desired result clearly so AI can understand it right away."
         detail.font = .preferredFont(forTextStyle: .subheadline)
         detail.textColor = .secondaryLabel
         detail.numberOfLines = 0
@@ -186,14 +186,14 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
         imageView.layer.cornerCurve = .continuous
         imageView.layer.borderWidth = 1 / UIScreen.main.scale
         imageView.layer.borderColor = UIColor.separator.cgColor
-        imageView.accessibilityLabel = "선택한 화면 영역"
+        imageView.accessibilityLabel = "Selected screen area"
         imageView.heightAnchor.constraint(equalToConstant: 150).isActive = true
         return imageView
     }
 
     private func makeTagSection() -> UIView {
         let title = UILabel()
-        title.text = "요청 종류  ·  선택 사항"
+        title.text = "Request Type  ·  Optional"
         title.font = .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
         title.textColor = .label
 
@@ -239,10 +239,10 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
         textView.backgroundColor = .clear
         textView.textColor = .label
         textView.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 34, right: 12)
-        textView.accessibilityLabel = "바꾸고 싶은 내용"
+        textView.accessibilityLabel = "Requested changes"
         textView.translatesAutoresizingMaskIntoConstraints = false
 
-        placeholderLabel.text = "예: 이 버튼을 조금 더 크게 하고, 위 카드와 같은 파란색으로 맞춰줘"
+        placeholderLabel.text = "Example: Make this button a little larger and match the blue color of the card above."
         placeholderLabel.font = .preferredFont(forTextStyle: .body)
         placeholderLabel.textColor = .placeholderText
         placeholderLabel.numberOfLines = 0
@@ -310,14 +310,14 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
             config.cornerStyle = .capsule
             config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 13, bottom: 8, trailing: 13)
             button.configuration = config
-            button.accessibilityValue = selected ? "선택됨" : nil
+            button.accessibilityValue = selected ? "Selected" : nil
         }
     }
 
     private func updateTextState() {
         let trimmed = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
         placeholderLabel.isHidden = !textView.text.isEmpty
-        characterCountLabel.text = "\(textView.text.count)자"
+        characterCountLabel.text = "\(textView.text.count) characters"
         saveButton.isEnabled = !trimmed.isEmpty
     }
 }

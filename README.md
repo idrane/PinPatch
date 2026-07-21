@@ -19,8 +19,8 @@ The host app does not import or initialize PinPatch. Add the dynamic `PinPatch` 
 1. Shake the device to enable PinPatch. The successful toggle gives haptic feedback. A second event within 500 ms is ignored.
 2. A shake is ignored while any `UITextInput` is first responder, including the PinPatch note editor.
 3. In view mode, inspect existing noninteractive pins while the host app continues receiving touches, scrolling, gestures, keyboard input, and accessibility navigation outside PinPatch controls.
-4. Choose **핀 찍기**, tap a target, adjust all four crop corners, choose an optional tag, and enter the requested change.
-5. Open **목록** to edit or delete notes, select pins across screens and add one shared link instruction, copy/share Markdown, share a system-created ZIP, or delete everything after confirmation.
+4. Choose **Add Pin**, tap a target, adjust all four crop corners, choose an optional tag, and enter the requested change.
+5. Open **Pin List** to edit or delete notes, select pins across screens and add one shared link instruction, copy or share Markdown, share a system-created ZIP, or delete everything after confirmation.
 
 Each connected `UISceneSession` has a separate overlay, mode, active crop flow, and controls. A shake toggles only the scene containing the receiving window.
 
@@ -59,7 +59,7 @@ find ~/Library/Developer/CoreSimulator/Devices -path '*/Library/Application Supp
 
 Screen fingerprints use only the normalized title explicitly exposed by the visible navigation controller. Accessibility headers, framework type, hosting-controller type, SwiftUI root type, and presentation style are not identity inputs because they were either inconsistent or identical across observed screens.
 
-Title normalization applies Unicode NFC and whitespace cleanup, then masks only explicitly marked order/ID/UUID/date/time values. Ordinary numbers and room/stage/floor suffixes remain, so `301호` and `302호` are distinct.
+Title normalization applies Unicode NFC and whitespace cleanup, then masks only explicitly marked order/ID/UUID/date/time values. Ordinary numbers and room, stage, and floor labels remain, so `Room 301` and `Room 302` are distinct.
 
 Public API and zero-source-integration constraints impose these limits:
 

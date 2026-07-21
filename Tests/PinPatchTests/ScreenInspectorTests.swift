@@ -7,22 +7,22 @@ import XCTest
 final class ScreenInspectorTests: XCTestCase {
     func testUIKitUsesVisibleLeafControllerAndPreservesRoomTitle() {
         let detail = FixtureDetailViewController()
-        detail.title = "301호"
+        detail.title = "Room 301"
         let window = makeWindow(root: UINavigationController(rootViewController: detail))
         let fingerprint = PPScreenInspector.fingerprint(in: window)
-        XCTAssertEqual(fingerprint.normalizedTitle, "301호")
+        XCTAssertEqual(fingerprint.normalizedTitle, "Room 301")
 
-        detail.title = "302호"
+        detail.title = "Room 302"
         let second = PPScreenInspector.fingerprint(in: window)
         XCTAssertNotEqual(fingerprint.canonical, second.canonical)
     }
 
     func testSwiftUIAccessibilityContentDoesNotAffectScreenIdentity() {
         let first = UIHostingController(rootView: AnyView(
-            AccessibilityFixtureView(identifier: "save-button", label: "저장")
+            AccessibilityFixtureView(identifier: "save-button", label: "Save")
         ))
         let second = UIHostingController(rootView: AnyView(
-            AccessibilityFixtureView(identifier: "delete-button", label: "삭제")
+            AccessibilityFixtureView(identifier: "delete-button", label: "Delete")
         ))
         let firstWindow = makeWindow(root: first)
         let secondWindow = makeWindow(root: second)

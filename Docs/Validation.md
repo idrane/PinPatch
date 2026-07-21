@@ -4,7 +4,7 @@
 
 - Swift package manifest resolves with no external dependencies.
 - The complete package builds for a generic iOS Simulator destination.
-- Title normalization keeps `301호` and `302호` distinct while masking explicit order IDs.
+- Title normalization keeps `Room 301` and `Room 302` distinct while masking explicit order IDs.
 - A fingerprint version change preserves the existing `screenID` after restart.
 - A screen's first pin creates one shared full-screen screenshot, later pins keep it unchanged, and the last pin deletion removes it.
 - A failure before pin commit leaves no visible pin directory.

@@ -155,7 +155,7 @@ final class PPSceneSession {
                     guard let screenData = screenshot.pngData(), let cropData = output.crop.pngData() else { return }
                     try await PPStorage.shared.savePin(screen: screen, record: record, note: output.note, screenshot: screenData, crop: cropData)
                 } catch {
-                    await MainActor.run { controller?.showNonBlockingError("저장하지 못했습니다") }
+                    await MainActor.run { controller?.showNonBlockingError("Unable to save the pin") }
                 }
             }
         }

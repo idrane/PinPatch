@@ -1,1 +1,1 @@
-저장 버튼을 브랜드 강조색으로 바꿔주세요.
+Change the Save button to the brand accent color.
