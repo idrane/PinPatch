@@ -47,7 +47,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
     private var actionInfoViews: [UIButton: UILabel] = [:]
     private var infoHideWorkItem: DispatchWorkItem?
     private var didApplyInitialBubblePosition = false
-    private weak var previousKeyWindow: UIWindow?
+    private var previousKeyWindow: UIWindow?
     private weak var embeddedToolController: UIViewController?
 
     override func viewDidLoad() {
@@ -178,11 +178,22 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         } completion: { _ in finish() }
     }
 
-    func dismissOverlayPresentation() {
+    func dismissOverlayPresentation(completion: (() -> Void)? = nil) {
         dismiss(animated: true) { [weak self] in
-            self?.previousKeyWindow?.makeKey()
-            self?.previousKeyWindow = nil
+            self?.restorePreviousKeyWindow()
+            completion?()
         }
+    }
+
+    private func restorePreviousKeyWindow() {
+        let overlayWindow = view.window
+        let hostWindow = previousKeyWindow
+            ?? overlayWindow?.windowScene?.windows.reversed().first(where: {
+                !$0.isHidden && $0.alpha > 0 && $0 !== overlayWindow && !($0 is PPOverlayWindow)
+            })
+        overlayWindow?.resignKey()
+        hostWindow?.makeKeyAndVisible()
+        previousKeyWindow = nil
     }
 
     func prepareForRemoval() {
@@ -195,8 +206,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
             self.embeddedToolController = nil
         }
         activeFlow = nil
-        previousKeyWindow?.makeKey()
-        previousKeyWindow = nil
+        restorePreviousKeyWindow()
     }
 
     func showNonBlockingError(_ message: String) {
