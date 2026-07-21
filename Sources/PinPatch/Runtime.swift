@@ -60,6 +60,7 @@ final class PPSceneSession {
     private weak var scene: UIWindowScene?
     private var overlay: PPOverlayWindow?
     private var lastToggleUptime: TimeInterval = -.infinity
+    private var normalizedBubblePosition: CGPoint?
 
     init(scene: UIWindowScene) {
         self.scene = scene
@@ -90,6 +91,7 @@ final class PPSceneSession {
     private func enable() -> Bool {
         guard let scene else { return false }
         let controller = PPOverlayViewController()
+        controller.normalizedBubblePosition = normalizedBubblePosition
         let window = PPOverlayWindow(windowScene: scene)
         window.overlayController = controller
         window.rootViewController = controller
@@ -98,10 +100,11 @@ final class PPSceneSession {
         controller.onClose = { [weak self] in self?.disable() }
         controller.onCapture = { [weak self] point in self?.beginCapture(at: point) }
         controller.onList = { [weak self] in self?.showList() }
+        controller.onInfo = { [weak self] in self?.showInfo() }
+        controller.onBubblePositionChanged = { [weak self] position in self?.normalizedBubblePosition = position }
         overlay = window
         window.isHidden = false
         controller.showIntroIfNeeded()
-        refreshMarkers()
         return true
     }
 
@@ -121,9 +124,9 @@ final class PPSceneSession {
             x: appWindow.bounds.width > 0 ? point.x / appWindow.bounds.width : 0,
             y: appWindow.bounds.height > 0 ? point.y / appWindow.bounds.height : 0
         )
-        let flow = PPPinFlowCoordinator(presentingWindow: overlay, image: screenshot, initialFrame: targetFrame) { [weak self] output in
-            controller.activeFlow = nil
-            guard let self, let output else { return }
+        let flow = PPPinFlowCoordinator(presentingWindow: overlay, image: screenshot, initialFrame: targetFrame) { [weak controller] output in
+            controller?.activeFlow = nil
+            guard let output else { return }
             Task {
                 do {
                     let screen = try await PPStorage.shared.resolveScreen(fingerprint)
@@ -147,9 +150,8 @@ final class PPSceneSession {
                     )
                     guard let screenData = screenshot.pngData(), let cropData = output.crop.pngData() else { return }
                     try await PPStorage.shared.savePin(screen: screen, record: record, note: output.note, screenshot: screenData, crop: cropData)
-                    await MainActor.run { self.refreshMarkers() }
                 } catch {
-                    await MainActor.run { controller.showNonBlockingError("저장하지 못했습니다") }
+                    await MainActor.run { controller?.showNonBlockingError("저장하지 못했습니다") }
                 }
             }
         }
@@ -160,35 +162,20 @@ final class PPSceneSession {
     private func showList() {
         guard let overlay, let controller = overlay.overlayController else { return }
         let list = PPListViewController()
-        list.onChanged = { [weak self] in self?.refreshMarkers() }
         list.onClose = { [weak controller] in controller?.dismissOverlayPresentation() }
         controller.presentInOverlay(UINavigationController(rootViewController: list))
     }
 
-    private func refreshMarkers() {
-        guard let appWindow = appWindow(), let controller = overlay?.overlayController else { return }
-        let fingerprint = PPScreenInspector.fingerprint(in: appWindow)
-        Task {
-            guard let screen = try? await PPStorage.shared.findScreen(fingerprint),
-                  let pins = try? await PPStorage.shared.loadPinSummaries(),
-                  let screens = try? await PPStorage.shared.loadScreenRecords() else { return }
-            let activeScreens = screens.filter { candidate in
-                pins.contains(where: { $0.record.screenID == candidate.screenID })
-            }
-            let screenNumber = (activeScreens.firstIndex(where: { $0.screenID == screen.screenID }) ?? 0) + 1
-            let matching = pins.filter { $0.record.screenID == screen.screenID }
-            let markers = matching.enumerated().map { index, pin in
-                PPMarker(
-                    label: "\(screenNumber)-\(index + 1)",
-                    point: CGPoint(
-                        x: pin.record.normalizedPoint.x * appWindow.bounds.width,
-                        y: pin.record.normalizedPoint.y * appWindow.bounds.height
-                    )
-                )
-            }
-            await MainActor.run { controller.setMarkers(markers) }
-        }
+    private func showInfo() {
+        guard let scene, let appWindow = appWindow(), let overlay, let controller = overlay.overlayController else { return }
+        let info = PPInfoViewController(
+            fingerprint: PPScreenInspector.fingerprint(in: appWindow),
+            sceneSessionID: scene.session.persistentIdentifier
+        )
+        info.onClose = { [weak controller] in controller?.dismissOverlayPresentation() }
+        controller.presentInOverlay(UINavigationController(rootViewController: info))
     }
+
 }
 
 private enum PPFirstResponder {

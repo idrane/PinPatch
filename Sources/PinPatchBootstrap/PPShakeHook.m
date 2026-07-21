@@ -4,17 +4,17 @@
 
 static PPShakeHandler PinPatchShakeHandler = nil;
 static BOOL PinPatchShakeInstalled = NO;
+typedef void (*PPMotionEndedImplementation)(UIWindow *, SEL, UIEventSubtype, UIEvent * _Nullable);
+static PPMotionEndedImplementation PinPatchOriginalMotionEnded = NULL;
 
-@implementation UIWindow (PinPatchShake)
-
-- (void)pp_motionEnded:(UIEventSubtype)motion withEvent:(UIEvent * _Nullable)event {
-    [self pp_motionEnded:motion withEvent:event];
+static void PinPatchMotionEnded(UIWindow *window, SEL _cmd, UIEventSubtype motion, UIEvent * _Nullable event) {
+    if (PinPatchOriginalMotionEnded != NULL) {
+        PinPatchOriginalMotionEnded(window, @selector(motionEnded:withEvent:), motion, event);
+    }
     if (motion == UIEventSubtypeMotionShake && PinPatchShakeHandler != nil) {
-        PinPatchShakeHandler(self, event);
+        PinPatchShakeHandler(window, event);
     }
 }
-
-@end
 
 @implementation PPShakeHook
 
@@ -35,18 +35,32 @@ static BOOL PinPatchShakeInstalled = NO;
         }
 
         Method original = class_getInstanceMethod(UIWindow.class, @selector(motionEnded:withEvent:));
-        Method replacement = class_getInstanceMethod(UIWindow.class, @selector(pp_motionEnded:withEvent:));
-        if (original == NULL || replacement == NULL) {
+        if (original == NULL) {
             return NO;
         }
         const char *originalTypes = method_getTypeEncoding(original);
-        const char *replacementTypes = method_getTypeEncoding(replacement);
-        if (originalTypes == NULL || replacementTypes == NULL || strcmp(originalTypes, replacementTypes) != 0) {
+        if (originalTypes == NULL) {
             return NO;
         }
 
+        IMP originalImplementation = method_getImplementation(original);
+        BOOL addedToWindow = class_addMethod(
+            UIWindow.class,
+            @selector(motionEnded:withEvent:),
+            (IMP)PinPatchMotionEnded,
+            originalTypes
+        );
+        if (addedToWindow) {
+            PinPatchOriginalMotionEnded = (PPMotionEndedImplementation)originalImplementation;
+        } else {
+            IMP replaced = method_setImplementation(original, (IMP)PinPatchMotionEnded);
+            if (replaced == NULL) {
+                return NO;
+            }
+            PinPatchOriginalMotionEnded = (PPMotionEndedImplementation)replaced;
+        }
+
         PinPatchShakeHandler = [handler copy];
-        method_exchangeImplementations(original, replacement);
         PinPatchShakeInstalled = YES;
         return YES;
     }

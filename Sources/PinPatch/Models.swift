@@ -178,4 +178,5 @@ struct PPPinSummary: Sendable {
     let record: PPPinRecord
     let note: String
     let result: PPResultRecord?
+    let cropURL: URL
 }

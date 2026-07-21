@@ -42,8 +42,10 @@ def main() -> int:
         shake_file = ROOT / "Sources/PinPatchBootstrap/PPShakeHook.m"
         shake_source = shake_file.read_text(encoding="utf-8")
         require("+ (void)load" in shake_source, "referenced Objective-C shake class owns automatic +load bootstrap")
-        definitions = re.findall(r"-\s*\(void\)pp_motionEnded:", shake_source)
-        require(len(definitions) == 1, "exactly one UIWindow.motionEnded replacement exists")
+        require("class_addMethod(" in shake_source, "inherited motion responder is overridden only on UIWindow")
+        require("PinPatchOriginalMotionEnded(window, @selector(motionEnded:withEvent:)" in shake_source,
+                "original responder is invoked with its original selector")
+        require("method_exchangeImplementations" not in shake_source, "shake hook does not exchange inherited responder selectors")
         other_motion_files = [
             path for path in SOURCE_FILES
             if path != shake_file and "motionEnded" in path.read_text(encoding="utf-8")

@@ -22,9 +22,14 @@ final class PPCropViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        title = "영역 자르기"
+        title = "영역 선택"
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { [weak self] _ in self?.onCancel?() })
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "확정", style: .done, target: self, action: #selector(confirm))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "다음", style: .done, target: self, action: #selector(confirm))
+
+        let instruction = PPToastView(symbol: "crop", title: "네 귀퉁이로 영역을 조절하세요")
+        instruction.isUserInteractionEnabled = false
+        instruction.isAccessibilityElement = false
+        instruction.translatesAutoresizingMaskIntoConstraints = false
 
         imageView.image = image
         imageView.contentMode = .scaleAspectFit
@@ -32,6 +37,7 @@ final class PPCropViewController: UIViewController {
         cropView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(imageView)
         view.addSubview(cropView)
+        view.addSubview(instruction)
         NSLayoutConstraint.activate([
             imageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -40,7 +46,11 @@ final class PPCropViewController: UIViewController {
             cropView.leadingAnchor.constraint(equalTo: imageView.leadingAnchor),
             cropView.trailingAnchor.constraint(equalTo: imageView.trailingAnchor),
             cropView.topAnchor.constraint(equalTo: imageView.topAnchor),
-            cropView.bottomAnchor.constraint(equalTo: imageView.bottomAnchor)
+            cropView.bottomAnchor.constraint(equalTo: imageView.bottomAnchor),
+            instruction.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            instruction.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -18),
+            instruction.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
+            instruction.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20)
         ])
     }
 
@@ -81,6 +91,7 @@ final class PPCropViewController: UIViewController {
             height: imageRect.height * pointToPixelY
         ).integral.intersection(CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
         guard let cropped = cgImage.cropping(to: pixelRect) else { return }
+        PPTheme.impactFeedback(.medium)
         onCrop?(UIImage(cgImage: cropped, scale: image.scale, orientation: .up))
     }
 
@@ -112,13 +123,24 @@ private final class PPCropSelectionView: UIView {
         isOpaque = false
         for corner in Corner.allCases {
             let handle = UIView()
-            handle.backgroundColor = .white
-            handle.layer.borderColor = UIColor.systemRed.cgColor
-            handle.layer.borderWidth = 3
-            handle.layer.cornerRadius = 12
+            handle.backgroundColor = .clear
             handle.isAccessibilityElement = true
             handle.accessibilityLabel = "자르기 영역 귀퉁이"
             handle.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(dragHandle(_:))))
+            let knob = UIView()
+            knob.backgroundColor = .white
+            knob.layer.borderColor = PPTheme.accent.cgColor
+            knob.layer.borderWidth = 4
+            knob.layer.cornerRadius = 9
+            knob.isUserInteractionEnabled = false
+            knob.translatesAutoresizingMaskIntoConstraints = false
+            handle.addSubview(knob)
+            NSLayoutConstraint.activate([
+                knob.centerXAnchor.constraint(equalTo: handle.centerXAnchor),
+                knob.centerYAnchor.constraint(equalTo: handle.centerYAnchor),
+                knob.widthAnchor.constraint(equalToConstant: 18),
+                knob.heightAnchor.constraint(equalToConstant: 18)
+            ])
             addSubview(handle)
             handles[corner] = handle
         }
@@ -155,12 +177,13 @@ private final class PPCropSelectionView: UIView {
         context.fill(cropRect)
         context.setBlendMode(.normal)
         context.setStrokeColor(UIColor.white.cgColor)
-        context.setLineWidth(2)
+        context.setLineWidth(2.5)
         context.stroke(cropRect)
     }
 
     @objc private func dragHandle(_ recognizer: UIPanGestureRecognizer) {
         guard let handle = recognizer.view, let corner = handles.first(where: { $0.value === handle })?.key else { return }
+        if recognizer.state == .began { PPTheme.impactFeedback(.soft) }
         let location = recognizer.location(in: self)
         let x = min(imageRect.maxX, max(imageRect.minX, location.x))
         let y = min(imageRect.maxY, max(imageRect.minY, location.y))

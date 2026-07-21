@@ -9,10 +9,10 @@ struct PPPinFlowOutput {
 @MainActor
 final class PPPinFlowCoordinator {
     private weak var presentingWindow: UIWindow?
+    private weak var overlayController: PPOverlayViewController?
     private let image: UIImage
     private let initialFrame: CGRect?
     private let completion: (PPPinFlowOutput?) -> Void
-    private weak var previousKeyWindow: UIWindow?
     private var navigationController: UINavigationController?
     private var crop: UIImage?
 
@@ -24,21 +24,20 @@ final class PPPinFlowCoordinator {
     }
 
     func start() {
-        guard let window = presentingWindow, let presenter = window.rootViewController else { return }
-        previousKeyWindow = window.windowScene?.windows.first(where: { $0.isKeyWindow && $0 !== window })
+        guard let window = presentingWindow,
+              let overlayController = window.rootViewController as? PPOverlayViewController else { return }
+        self.overlayController = overlayController
         let cropController = PPCropViewController(image: image, initialFrame: initialFrame)
         cropController.onCancel = { [weak self] in self?.finish(nil) }
         cropController.onCrop = { [weak self] image in self?.showNote(for: image) }
         let navigation = UINavigationController(rootViewController: cropController)
-        navigation.modalPresentationStyle = .fullScreen
         navigationController = navigation
-        window.makeKey()
-        presenter.present(navigation, animated: true)
+        overlayController.embedToolContent(navigation)
     }
 
     private func showNote(for image: UIImage) {
         crop = image
-        let note = PPNoteViewController()
+        let note = PPNoteViewController(previewImage: image)
         note.onCancel = { [weak self] in self?.finish(nil) }
         note.onSave = { [weak self] tag, text in
             guard let self, let crop = self.crop else { return }
@@ -48,9 +47,8 @@ final class PPPinFlowCoordinator {
     }
 
     private func finish(_ output: PPPinFlowOutput?) {
-        navigationController?.dismiss(animated: true) { [weak self] in
+        overlayController?.removeEmbeddedToolContent(animated: true) { [weak self] in
             guard let self else { return }
-            self.previousKeyWindow?.makeKey()
             self.navigationController = nil
             self.completion(output)
         }
@@ -62,58 +60,270 @@ final class PPNoteViewController: UIViewController, UITextViewDelegate {
     var onCancel: (() -> Void)?
     var onSave: ((PPTag?, String) -> Void)?
 
+    private let previewImage: UIImage?
+    private let initialText: String
+    private let screenTitle: String
+    private let saveTitle: String
+    private let scrollView = UIScrollView()
+    private let contentStack = UIStackView()
     private let textView = UITextView()
-    private let tagButton = UIButton(type: .system)
-    private var selectedTag: PPTag?
+    private let placeholderLabel = UILabel()
+    private let characterCountLabel = UILabel()
+    private let saveButton = UIButton(type: .system)
+    private var tagButtons: [PPTag: UIButton] = [:]
+    private var selectedTag: PPTag? { didSet { updateTagSelection() } }
+
+    init(
+        previewImage: UIImage? = nil,
+        initialTag: PPTag? = nil,
+        initialText: String = "",
+        title: String = "요청 작성",
+        saveTitle: String = "핀 저장"
+    ) {
+        self.previewImage = previewImage
+        self.initialText = initialText
+        self.screenTitle = title
+        self.saveTitle = saveTitle
+        self.selectedTag = initialTag
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        title = "수정 메모"
+        view.backgroundColor = .secondarySystemBackground
+        title = screenTitle
         navigationItem.hidesBackButton = true
         navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { [weak self] _ in self?.onCancel?() })
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "저장", style: .done, target: self, action: #selector(save))
-        navigationItem.rightBarButtonItem?.isEnabled = false
+        navigationController?.navigationBar.prefersLargeTitles = false
 
-        tagButton.configuration = .bordered()
-        tagButton.configuration?.title = "태그 선택(선택 사항)"
-        tagButton.menu = UIMenu(children: PPTag.allCases.map { tag in
-            UIAction(title: tag.localizedTitle) { [weak self] _ in
-                self?.selectedTag = tag
-                self?.tagButton.configuration?.title = tag.localizedTitle
-            }
-        })
-        tagButton.showsMenuAsPrimaryAction = true
-        tagButton.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        scrollView.keyboardDismissMode = .interactive
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        contentStack.axis = .vertical
+        contentStack.spacing = 22
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scrollView)
+        scrollView.addSubview(contentStack)
 
-        textView.font = .preferredFont(forTextStyle: .body)
-        textView.layer.borderColor = UIColor.separator.cgColor
-        textView.layer.borderWidth = 1
-        textView.layer.cornerRadius = 10
-        textView.delegate = self
-        textView.accessibilityLabel = "바꾸고 싶은 내용"
-        textView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tagButton)
-        view.addSubview(textView)
+        let header = makeHeader()
+        contentStack.addArrangedSubview(header)
+        if let previewImage {
+            contentStack.addArrangedSubview(makePreview(image: previewImage))
+        }
+        contentStack.addArrangedSubview(makeTagSection())
+        contentStack.addArrangedSubview(makeEditor())
+
+        configureSaveButton()
+        view.addSubview(saveButton)
         NSLayoutConstraint.activate([
-            tagButton.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            tagButton.trailingAnchor.constraint(lessThanOrEqualTo: view.layoutMarginsGuide.trailingAnchor),
-            tagButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            textView.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            textView.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-            textView.topAnchor.constraint(equalTo: tagButton.bottomAnchor, constant: 16),
-            textView.heightAnchor.constraint(greaterThanOrEqualToConstant: 180)
+            saveButton.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
+            saveButton.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+            saveButton.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -12),
+            saveButton.heightAnchor.constraint(equalToConstant: 54),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: saveButton.topAnchor, constant: -10),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 20),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -20),
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 18),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -24),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -40)
         ])
-        textView.becomeFirstResponder()
+
+        textView.text = initialText
+        textView.delegate = self
+        updateTextState()
+        updateTagSelection()
+        if initialText.isEmpty {
+            DispatchQueue.main.async { [weak self] in self?.textView.becomeFirstResponder() }
+        }
     }
 
     func textViewDidChange(_ textView: UITextView) {
-        navigationItem.rightBarButtonItem?.isEnabled = !textView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        updateTextState()
     }
 
     @objc private func save() {
         let value = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
+        PPTheme.successFeedback()
         onSave?(selectedTag, value)
+    }
+
+    private func makeHeader() -> UIView {
+        let eyebrow = UILabel()
+        eyebrow.text = previewImage == nil ? "메모 수정" : "새로운 수정 요청"
+        eyebrow.font = .preferredFont(forTextStyle: .caption1)
+        eyebrow.textColor = PPTheme.accent
+
+        let title = UILabel()
+        title.text = "무엇을 바꾸면 될까요?"
+        title.font = .preferredFont(forTextStyle: .title2).withWeight(.bold)
+        title.textColor = .label
+        title.numberOfLines = 0
+
+        let detail = UILabel()
+        detail.text = "AI가 바로 이해할 수 있게 원하는 결과를 구체적으로 적어주세요."
+        detail.font = .preferredFont(forTextStyle: .subheadline)
+        detail.textColor = .secondaryLabel
+        detail.numberOfLines = 0
+
+        let stack = UIStackView(arrangedSubviews: [eyebrow, title, detail])
+        stack.axis = .vertical
+        stack.spacing = 5
+        return stack
+    }
+
+    private func makePreview(image: UIImage) -> UIView {
+        let imageView = UIImageView(image: image)
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = PPTheme.cardCornerRadius
+        imageView.layer.cornerCurve = .continuous
+        imageView.layer.borderWidth = 1 / UIScreen.main.scale
+        imageView.layer.borderColor = UIColor.separator.cgColor
+        imageView.accessibilityLabel = "선택한 화면 영역"
+        imageView.heightAnchor.constraint(equalToConstant: 150).isActive = true
+        return imageView
+    }
+
+    private func makeTagSection() -> UIView {
+        let title = UILabel()
+        title.text = "요청 종류  ·  선택 사항"
+        title.font = .preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
+        title.textColor = .label
+
+        let scroll = UIScrollView()
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.alwaysBounceHorizontal = true
+        let row = UIStackView()
+        row.axis = .horizontal
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(row)
+        for tag in PPTag.allCases {
+            let button = UIButton(type: .system)
+            button.tag = PPTag.allCases.firstIndex(of: tag) ?? 0
+            button.addTarget(self, action: #selector(selectTag(_:)), for: .touchUpInside)
+            button.heightAnchor.constraint(equalToConstant: 40).isActive = true
+            row.addArrangedSubview(button)
+            tagButtons[tag] = button
+        }
+        NSLayoutConstraint.activate([
+            row.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            row.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+            row.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            row.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+            row.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
+            scroll.heightAnchor.constraint(equalToConstant: 42)
+        ])
+        let section = UIStackView(arrangedSubviews: [title, scroll])
+        section.axis = .vertical
+        section.spacing = 10
+        return section
+    }
+
+    private func makeEditor() -> UIView {
+        let card = UIView()
+        card.backgroundColor = .tertiarySystemBackground
+        card.layer.cornerRadius = PPTheme.cardCornerRadius
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1 / UIScreen.main.scale
+        card.layer.borderColor = UIColor.separator.cgColor
+
+        textView.font = .preferredFont(forTextStyle: .body)
+        textView.backgroundColor = .clear
+        textView.textColor = .label
+        textView.textContainerInset = UIEdgeInsets(top: 16, left: 12, bottom: 34, right: 12)
+        textView.accessibilityLabel = "바꾸고 싶은 내용"
+        textView.translatesAutoresizingMaskIntoConstraints = false
+
+        placeholderLabel.text = "예: 이 버튼을 조금 더 크게 하고, 위 카드와 같은 파란색으로 맞춰줘"
+        placeholderLabel.font = .preferredFont(forTextStyle: .body)
+        placeholderLabel.textColor = .placeholderText
+        placeholderLabel.numberOfLines = 0
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        characterCountLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        characterCountLabel.textColor = .tertiaryLabel
+        characterCountLabel.textAlignment = .right
+        characterCountLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        card.addSubview(textView)
+        card.addSubview(placeholderLabel)
+        card.addSubview(characterCountLabel)
+        NSLayoutConstraint.activate([
+            card.heightAnchor.constraint(greaterThanOrEqualToConstant: 210),
+            textView.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            textView.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            textView.topAnchor.constraint(equalTo: card.topAnchor),
+            textView.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            placeholderLabel.leadingAnchor.constraint(equalTo: textView.leadingAnchor, constant: 17),
+            placeholderLabel.trailingAnchor.constraint(equalTo: textView.trailingAnchor, constant: -17),
+            placeholderLabel.topAnchor.constraint(equalTo: textView.topAnchor, constant: 16),
+            characterCountLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -14),
+            characterCountLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12)
+        ])
+        return card
+    }
+
+    private func configureSaveButton() {
+        var config = UIButton.Configuration.filled()
+        config.title = saveTitle
+        config.image = PPTheme.symbol("checkmark", pointSize: 16, weight: .bold)
+        config.imagePlacement = .trailing
+        config.imagePadding = 9
+        config.baseBackgroundColor = PPTheme.accent
+        config.cornerStyle = .large
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var value = attributes
+            value.font = .preferredFont(forTextStyle: .headline)
+            return value
+        }
+        saveButton.configuration = config
+        saveButton.translatesAutoresizingMaskIntoConstraints = false
+        saveButton.addTarget(self, action: #selector(save), for: .touchUpInside)
+        PPTheme.applyFloatingShadow(to: saveButton.layer)
+    }
+
+    @objc private func selectTag(_ sender: UIButton) {
+        let tags = PPTag.allCases
+        guard tags.indices.contains(sender.tag) else { return }
+        let tag = tags[sender.tag]
+        selectedTag = selectedTag == tag ? nil : tag
+        PPTheme.selectionFeedback()
+    }
+
+    private func updateTagSelection() {
+        for (tag, button) in tagButtons {
+            let selected = tag == selectedTag
+            var config = selected ? UIButton.Configuration.filled() : UIButton.Configuration.tinted()
+            config.title = tag.localizedTitle
+            config.image = PPTheme.symbol(tag.systemImageName, pointSize: 14)
+            config.imagePadding = 6
+            config.baseBackgroundColor = selected ? tag.tintColor : tag.tintColor.withAlphaComponent(0.13)
+            config.baseForegroundColor = selected ? .white : tag.tintColor
+            config.cornerStyle = .capsule
+            config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 13, bottom: 8, trailing: 13)
+            button.configuration = config
+            button.accessibilityValue = selected ? "선택됨" : nil
+        }
+    }
+
+    private func updateTextState() {
+        let trimmed = textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        placeholderLabel.isHidden = !textView.text.isEmpty
+        characterCountLabel.text = "\(textView.text.count)자"
+        saveButton.isEnabled = !trimmed.isEmpty
+    }
+}
+
+private extension UIFont {
+    func withWeight(_ weight: UIFont.Weight) -> UIFont {
+        UIFont.systemFont(ofSize: pointSize, weight: weight)
     }
 }

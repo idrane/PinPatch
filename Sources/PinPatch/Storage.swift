@@ -245,7 +245,12 @@ actor PPStorage {
                   let note = try? String(contentsOf: revision.appendingPathComponent("note.md"), encoding: .utf8) else { return nil }
             let resultURL = root.appendingPathComponent("results/\(pinID.uuidString.lowercased()).json")
             let result: PPResultRecord? = try? readJSON(at: resultURL)
-            return PPPinSummary(record: record, note: note, result: result?.processedRevisionID == current.revisionID ? result : nil)
+            return PPPinSummary(
+                record: record,
+                note: note,
+                result: result?.processedRevisionID == current.revisionID ? result : nil,
+                cropURL: folder.appendingPathComponent("assets/crop.png")
+            )
         }.sorted { $0.record.createdAt < $1.record.createdAt }
     }
 
@@ -285,7 +290,12 @@ actor PPStorage {
             guard let record: PPPinRecord = try? readJSON(at: revision.appendingPathComponent("pin.json")),
                   record.pinID == folderPinID, record.revisionID == current.revisionID,
                   let note = try? String(contentsOf: revision.appendingPathComponent("note.md"), encoding: .utf8) else { return nil }
-            return PPPinSummary(record: record, note: note, result: nil)
+            return PPPinSummary(
+                record: record,
+                note: note,
+                result: nil,
+                cropURL: folder.appendingPathComponent("assets/crop.png")
+            )
         }
     }
 
