@@ -33,8 +33,8 @@ Library/Application Support/PinPatch/
 ├── manifest.json
 ├── index.json
 ├── screens/<screenID>.json
+├── screens/<screenID>/screen.png
 ├── pins/<pinID>/
-│   ├── assets/screen.png
 │   ├── assets/crop.png
 │   ├── revisions/<revisionID>/pin.json
 │   ├── revisions/<revisionID>/note.md
@@ -47,7 +47,7 @@ Library/Application Support/PinPatch/
 
 `screens`, `pins`, `groups`, and `results` are canonical. `index.json` is only a rebuildable list cache. Labels such as `1-1` are presentation values and are never used for filenames, links, or processing state.
 
-New pins and groups are fully written and synchronized in `.staging` before one same-volume rename. Note edits write a new immutable revision, atomically replace `current.json`, and then remove the old revision. Startup removes abandoned staging, trash, and non-current revisions and rebuilds screen mappings or the index from canonical folders.
+New pins and groups are fully written and synchronized in `.staging` before same-volume renames. The first completed pin for a screen saves one shared full-screen screenshot under that screen ID; later pins reuse it, and deleting the screen's last pin removes it. Note edits write a new immutable revision, atomically replace `current.json`, and then remove the old revision. Startup removes abandoned staging, trash, non-current revisions, and orphan screen screenshots, and rebuilds screen mappings or the index from canonical folders.
 
 On a simulator, locate storage with:
 
@@ -57,16 +57,14 @@ find ~/Library/Developer/CoreSimulator/Devices -path '*/Library/Application Supp
 
 ## Screen identity
 
-UIKit fingerprints use the leaf controller type, normalized title, and modal state. SwiftUI fingerprints add the hosting controller's generic content type when public metadata exposes it, plus a digest of stable visible accessibility roles, traits, identifiers, fixed control/header labels, hierarchy depth, and coarse layout.
+Screen fingerprints use only the normalized title explicitly exposed by the visible navigation controller. Accessibility headers, framework type, hosting-controller type, SwiftUI root type, and presentation style are not identity inputs because they were either inconsistent or identical across observed screens.
 
 Title normalization applies Unicode NFC and whitespace cleanup, then masks only explicitly marked order/ID/UUID/date/time values. Ordinary numbers and room/stage/floor suffixes remain, so `301호` and `302호` are distinct.
 
 Public API and zero-source-integration constraints impose these limits:
 
-- UIKit screens with the same leaf controller type, normalized title, and modal state merge.
-- SwiftUI screens with the same root type, semantic structure, normalized title, and modal state merge.
-- A `NavigationStack` destination's concrete type is not always publicly available. Different destinations with no title or accessibility identifiers and the same accessibility structure can merge.
-- SwiftUI does not expose every pure-SwiftUI semantic node through public UIKit accessibility-container APIs in every rendering state. When no semantic nodes are publicly visible, identity falls back to root type, normalized title, and modal state, so structurally different destinations can still merge.
+- Screens with the same normalized title merge regardless of UIKit or SwiftUI implementation details.
+- All untitled screens merge. Give navigation destinations distinct titles when they must have separate Screen IDs.
 
 Fingerprint version-only migrations retain the existing `screenID` through aliases. If the registry is absent or corrupt, PinPatch reconstructs it from existing pin revisions.
 

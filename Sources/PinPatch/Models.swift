@@ -2,11 +2,6 @@ import CoreGraphics
 import Foundation
 import UIKit
 
-enum PPFramework: String, Codable, Sendable {
-    case uiKit
-    case swiftUI
-}
-
 enum PPTag: String, CaseIterable, Codable, Sendable {
     case bug
     case color
@@ -30,37 +25,22 @@ enum PPTag: String, CaseIterable, Codable, Sendable {
 }
 
 struct PPScreenFingerprint: Codable, Hashable, Sendable {
-    static let version = 1
+    static let version = 3
 
-    let framework: PPFramework
-    let screenKind: String
-    let swiftUIRootType: String?
-    let swiftUISemanticDigest: String?
     let rawTitle: String?
     let normalizedTitle: String?
-    let isModal: Bool
     let fingerprintVersion: Int
 
     var canonical: String {
         [
             "v=\(fingerprintVersion)",
-            "framework=\(framework.rawValue)",
-            "kind=\(screenKind)",
-            "root=\(swiftUIRootType ?? "")",
-            "semantic=\(swiftUISemanticDigest ?? "")",
-            "title=\(normalizedTitle ?? "")",
-            "modal=\(isModal ? "1" : "0")"
+            "title=\(normalizedTitle ?? "")"
         ].joined(separator: "|")
     }
 
     var versionIndependentCanonical: String {
         [
-            "framework=\(framework.rawValue)",
-            "kind=\(screenKind)",
-            "root=\(swiftUIRootType ?? "")",
-            "semantic=\(swiftUISemanticDigest ?? "")",
-            "title=\(normalizedTitle ?? "")",
-            "modal=\(isModal ? "1" : "0")"
+            "title=\(normalizedTitle ?? "")"
         ].joined(separator: "|")
     }
 }

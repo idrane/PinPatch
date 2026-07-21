@@ -5,12 +5,10 @@ final class PPInfoViewController: UITableViewController {
     var onClose: (() -> Void)?
 
     private let fingerprint: PPScreenFingerprint
-    private let sceneSessionID: String
     private var screenID: UUID?
 
-    init(fingerprint: PPScreenFingerprint, sceneSessionID: String) {
+    init(fingerprint: PPScreenFingerprint) {
         self.fingerprint = fingerprint
-        self.sceneSessionID = sceneSessionID
         super.init(style: .insetGrouped)
     }
 
@@ -32,27 +30,18 @@ final class PPInfoViewController: UITableViewController {
         }
     }
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 3 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 1 }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        switch section {
-        case 0: return 3
-        case 1: return fingerprint.framework == .swiftUI ? 4 : 2
-        default: return 2
-        }
+        3
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        switch section {
-        case 0: return "화면"
-        case 1: return "식별 지문"
-        default: return "동작 범위"
-        }
+        "화면 식별"
     }
 
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-        guard section == 2 else { return nil }
-        return "이 정보는 기기 안에만 머물며 앱이 화면을 다시 찾을 때 사용됩니다."
+        "정규화된 화면 이름만 같은 화면을 다시 찾는 데 사용됩니다."
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -71,14 +60,8 @@ final class PPInfoViewController: UITableViewController {
 
     private func row(at indexPath: IndexPath) -> (title: String, value: String, symbol: String) {
         switch (indexPath.section, indexPath.row) {
-        case (0, 0): return ("화면 종류", fingerprint.framework == .swiftUI ? "SwiftUI" : "UIKit", "square.stack.3d.up")
-        case (0, 1): return ("화면 이름", fingerprint.rawTitle ?? "제목 없음", "textformat")
-        case (0, 2): return ("표시 방식", fingerprint.isModal ? "모달" : "일반 화면", "rectangle.on.rectangle")
-        case (1, 0): return ("내부 화면", fingerprint.screenKind, "curlybraces")
-        case (1, 1): return ("Screen ID", screenID?.uuidString.lowercased() ?? "아직 저장되지 않음", "number")
-        case (1, 2): return ("SwiftUI Root", fingerprint.swiftUIRootType ?? "확인되지 않음", "swift")
-        case (1, 3): return ("의미 구조", fingerprint.swiftUISemanticDigest.map { String($0.prefix(12)) } ?? "확인되지 않음", "point.3.connected.trianglepath.dotted")
-        case (2, 0): return ("현재 창", String(sceneSessionID.prefix(12)), "macwindow")
+        case (0, 0): return ("화면 이름", fingerprint.rawTitle ?? "제목 없음", "textformat")
+        case (0, 1): return ("Screen ID", screenID?.uuidString.lowercased() ?? "아직 저장되지 않음", "number")
         default: return ("지문 버전", "v\(fingerprint.fingerprintVersion)", "checkmark.seal")
         }
     }

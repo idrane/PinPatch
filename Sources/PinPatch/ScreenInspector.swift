@@ -10,22 +10,11 @@ enum PPScreenInspector {
 
     static func fingerprint(in window: UIWindow) -> PPScreenFingerprint {
         let controller = visibleController(in: window)
-        let typeName = controller.map { String(reflecting: type(of: $0)) } ?? "UnknownViewController"
-        let swiftUI = typeName.localizedCaseInsensitiveContains("hostingcontroller")
-            || typeName.localizedCaseInsensitiveContains("hostingview")
         let rawTitle = controller?.navigationItem.title
             ?? controller?.title
-            ?? (swiftUI ? visibleHeaderTitle(in: controller?.view) : nil)
-        let rootType = swiftUI ? hostingContentName(from: typeName) : nil
-        let semantic = swiftUI ? semanticDigest(in: controller?.view) : nil
         return PPScreenFingerprint(
-            framework: swiftUI ? .swiftUI : .uiKit,
-            screenKind: typeName,
-            swiftUIRootType: rootType,
-            swiftUISemanticDigest: semantic,
             rawTitle: rawTitle,
             normalizedTitle: PPTitleNormalizer.normalize(rawTitle),
-            isModal: isPresentedModally(controller),
             fingerprintVersion: PPScreenFingerprint.version
         )
     }
@@ -155,123 +144,4 @@ enum PPScreenInspector {
         return result
     }
 
-    private static func hostingContentName(from typeName: String) -> String {
-        guard let start = typeName.firstIndex(of: "<"), let end = typeName.lastIndex(of: ">"), start < end else {
-            return typeName
-        }
-        return String(typeName[typeName.index(after: start)..<end])
-    }
-
-    private static func isPresentedModally(_ controller: UIViewController?) -> Bool {
-        var current = controller
-        while let value = current {
-            if value.presentingViewController != nil { return true }
-            current = value.parent
-        }
-        return false
-    }
-
-    private static func visibleHeaderTitle(in root: UIView?) -> String? {
-        guard let root else { return nil }
-        var candidates: [(CGFloat, String)] = []
-        func collect(_ view: UIView) {
-            guard !view.isHidden, view.alpha > 0.01 else { return }
-            if view.accessibilityTraits.contains(.header),
-               let label = view.accessibilityLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !label.isEmpty {
-                candidates.append((view.convert(view.bounds, to: view.window).minY, label))
-            }
-            view.subviews.forEach(collect)
-        }
-        collect(root)
-        return candidates.min(by: { $0.0 < $1.0 })?.1
-    }
-
-    private static func semanticDigest(in root: UIView?) -> String? {
-        guard let root else { return nil }
-        var entries: [String] = []
-        var visited = Set<ObjectIdentifier>()
-        let rootBounds = root.convert(root.bounds, to: root.window)
-        walk(root, rootBounds: rootBounds, depth: 0, visited: &visited, entries: &entries)
-        guard !entries.isEmpty else { return nil }
-        return PPStableDigest.hex(entries.joined(separator: "\n"))
-    }
-
-    private static func walk(
-        _ object: AnyObject,
-        rootBounds: CGRect,
-        depth: Int,
-        visited: inout Set<ObjectIdentifier>,
-        entries: inout [String]
-    ) {
-        guard depth <= 32, entries.count < 512 else { return }
-        let identifier = ObjectIdentifier(object)
-        guard visited.insert(identifier).inserted else { return }
-
-        if let view = object as? UIView, !view.isHidden, view.alpha > 0.01 {
-            let isRepeatedCell = ancestorIsRepeatedCell(view)
-            if view.isAccessibilityElement || view.accessibilityIdentifier != nil {
-                let frame = view.convert(view.bounds, to: view.window)
-                let role = String(reflecting: type(of: view))
-                let stableLabel = isRepeatedCell ? nil : stableSemanticLabel(for: view)
-                let position = positionBucket(frame, in: rootBounds)
-                entries.append("d=\(depth)|r=\(role)|t=\(view.accessibilityTraits.rawValue)|id=\(view.accessibilityIdentifier ?? "")|l=\(stableLabel ?? "")|p=\(position)")
-            }
-            for child in view.subviews {
-                walk(child, rootBounds: rootBounds, depth: depth + 1, visited: &visited, entries: &entries)
-            }
-            for element in view.accessibilityElements ?? [] {
-                guard let child = element as AnyObject?, !(child is UIView) else { continue }
-                walk(child, rootBounds: rootBounds, depth: depth + 1, visited: &visited, entries: &entries)
-            }
-            let accessibilityCount = min(max(0, view.accessibilityElementCount()), 256)
-            if accessibilityCount > 0 {
-                for index in 0..<accessibilityCount {
-                    guard let child = view.accessibilityElement(at: index) as AnyObject?, !(child is UIView) else { continue }
-                    walk(child, rootBounds: rootBounds, depth: depth + 1, visited: &visited, entries: &entries)
-                }
-            }
-        } else if let element = object as? UIAccessibilityElement {
-            let stableLabel = stableSemanticLabel(element.accessibilityLabel)
-            let position = positionBucket(element.accessibilityFrame, in: rootBounds)
-            entries.append("d=\(depth)|r=AXElement|t=\(element.accessibilityTraits.rawValue)|id=\(element.accessibilityIdentifier ?? "")|l=\(stableLabel ?? "")|p=\(position)")
-        }
-    }
-
-    private static func stableSemanticLabel(for view: UIView) -> String? {
-        guard !(view is UITextField), !(view is UITextView) else { return nil }
-        let traits = view.accessibilityTraits
-        let structural = traits.contains(.button) || traits.contains(.header) || traits.contains(.searchField) || view is UIControl
-        guard structural else { return nil }
-        return stableSemanticLabel(view.accessibilityLabel)
-    }
-
-    private static func stableSemanticLabel(_ label: String?) -> String? {
-        guard var value = PPTitleNormalizer.normalize(label) else { return nil }
-        if value.range(of: #"^\d+$"#, options: .regularExpression) != nil { return nil }
-        value = value.replacingOccurrences(
-            of: #"(?i)\b\d+\s*(?:개|건|명|items?|results?|notifications?)\b"#,
-            with: "{count}",
-            options: .regularExpression
-        )
-        return value
-    }
-
-    private static func ancestorIsRepeatedCell(_ view: UIView) -> Bool {
-        var current = view.superview
-        while let candidate = current {
-            if candidate is UITableViewCell || candidate is UICollectionViewCell { return true }
-            current = candidate.superview
-        }
-        return false
-    }
-
-    private static func positionBucket(_ frame: CGRect, in bounds: CGRect) -> String {
-        guard bounds.width > 0, bounds.height > 0 else { return "0,0,0,0" }
-        func bucket(_ value: CGFloat) -> Int { min(10, max(0, Int((value * 10).rounded()))) }
-        return [
-            bucket(frame.minX / bounds.width), bucket(frame.minY / bounds.height),
-            bucket(frame.width / bounds.width), bucket(frame.height / bounds.height)
-        ].map(String.init).joined(separator: ",")
-    }
 }

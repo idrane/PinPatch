@@ -45,6 +45,7 @@ actor PPStorage {
         try cleanStaging(root: root)
         try cleanOrphanRevisions(root: root)
         try recoverScreenRegistry(root: root)
+        try recoverScreenSnapshots(root: root)
         try cleanGroups(root: root)
         try? rebuildIndex(root: root)
         rootURL = root
@@ -124,18 +125,35 @@ actor PPStorage {
         let transaction = root.appendingPathComponent(".staging/\(transactionID)", isDirectory: true)
         let stagedPin = transaction.appendingPathComponent(record.pinID.uuidString.lowercased(), isDirectory: true)
         let assets = stagedPin.appendingPathComponent("assets", isDirectory: true)
+        let stagedScreen = transaction.appendingPathComponent("screen", isDirectory: true)
+        let screenAssets = screenAssetsURL(root: root, screenID: record.screenID)
+        let needsScreenSnapshot = !fm.fileExists(atPath: screenAssets.appendingPathComponent("screen.png").path)
+        let screenAlreadyHadPins = hasPin(on: record.screenID, root: root)
         let revision = stagedPin.appendingPathComponent("revisions/\(record.revisionID.uuidString.lowercased())", isDirectory: true)
         try fm.createDirectory(at: assets, withIntermediateDirectories: true)
         try fm.createDirectory(at: revision, withIntermediateDirectories: true)
 
+        var committedScreenSnapshot = false
         do {
-            try writeAndValidate(screenshot, to: assets.appendingPathComponent("screen.png"))
+            if needsScreenSnapshot {
+                try writeAndValidate(screenshot, to: stagedScreen.appendingPathComponent("screen.png"))
+            }
             try writeAndValidate(crop, to: assets.appendingPathComponent("crop.png"))
             try writeJSON(record, to: revision.appendingPathComponent("pin.json"))
             try writeAndValidate(Data(note.utf8), to: revision.appendingPathComponent("note.md"))
             try writeJSON(PPCurrentRevision(revisionID: record.revisionID), to: stagedPin.appendingPathComponent("current.json"))
             try syncDirectory(stagedPin)
             try faultInjector?(.beforePinCommit)
+            if needsScreenSnapshot {
+                try fm.createDirectory(at: screenAssets, withIntermediateDirectories: true)
+                try fm.moveItem(
+                    at: stagedScreen.appendingPathComponent("screen.png"),
+                    to: screenAssets.appendingPathComponent("screen.png")
+                )
+                try syncDirectory(screenAssets)
+                try syncDirectory(root.appendingPathComponent("screens", isDirectory: true))
+                committedScreenSnapshot = true
+            }
             let destination = root.appendingPathComponent("pins/\(record.pinID.uuidString.lowercased())", isDirectory: true)
             guard !fm.fileExists(atPath: destination.path) else { throw PPStorageError.pinAlreadyExists }
             try fm.moveItem(at: stagedPin, to: destination)
@@ -143,6 +161,9 @@ actor PPStorage {
             try? fm.removeItem(at: transaction)
             try? rebuildIndex(root: root)
         } catch {
+            if committedScreenSnapshot, !screenAlreadyHadPins {
+                try? fm.removeItem(at: screenAssets)
+            }
             try? fm.removeItem(at: transaction)
             throw error
         }
@@ -187,11 +208,15 @@ actor PPStorage {
         let root = try prepare()
         let source = root.appendingPathComponent("pins/\(pinID.uuidString.lowercased())", isDirectory: true)
         guard fm.fileExists(atPath: source.path) else { return }
+        let screenID = currentPinRecord(in: source)?.screenID
         let trash = root.appendingPathComponent(".trash/\(UUID().uuidString.lowercased())", isDirectory: true)
         try fm.moveItem(at: source, to: trash)
         try? fm.removeItem(at: root.appendingPathComponent("results/\(pinID.uuidString.lowercased()).json"))
         try pruneGroups(removing: pinID, root: root)
         try? fm.removeItem(at: trash)
+        if let screenID, !hasPin(on: screenID, root: root) {
+            try? fm.removeItem(at: screenAssetsURL(root: root, screenID: screenID))
+        }
         try? rebuildIndex(root: root)
     }
 
@@ -297,6 +322,25 @@ actor PPStorage {
                 cropURL: folder.appendingPathComponent("assets/crop.png")
             )
         }
+    }
+
+    private func currentPinRecord(in folder: URL) -> PPPinRecord? {
+        guard let current: PPCurrentRevision = try? readJSON(at: folder.appendingPathComponent("current.json")) else { return nil }
+        let revision = folder.appendingPathComponent("revisions/\(current.revisionID.uuidString.lowercased())", isDirectory: true)
+        guard let record: PPPinRecord = try? readJSON(at: revision.appendingPathComponent("pin.json")),
+              record.revisionID == current.revisionID else { return nil }
+        return record
+    }
+
+    private func hasPin(on screenID: UUID, root: URL) -> Bool {
+        let pins = root.appendingPathComponent("pins", isDirectory: true)
+        return ((try? fm.contentsOfDirectory(at: pins, includingPropertiesForKeys: nil)) ?? []).contains {
+            currentPinRecord(in: $0)?.screenID == screenID
+        }
+    }
+
+    private func screenAssetsURL(root: URL, screenID: UUID) -> URL {
+        root.appendingPathComponent("screens/\(screenID.uuidString.lowercased())", isDirectory: true)
     }
 
     private func writeManifestIfNeeded(root: URL) throws {
@@ -406,6 +450,40 @@ actor PPStorage {
                 recovered,
                 to: screenDirectory.appendingPathComponent(summary.record.screenID.uuidString.lowercased()).appendingPathExtension("json")
             )
+        }
+    }
+
+    private func recoverScreenSnapshots(root: URL) throws {
+        let summaries = try loadPinSummariesWithoutPrepare(root: root)
+        let activeScreenIDs = Set(summaries.map(\.record.screenID))
+        let screens = root.appendingPathComponent("screens", isDirectory: true)
+
+        for item in (try? fm.contentsOfDirectory(at: screens, includingPropertiesForKeys: [.isDirectoryKey])) ?? [] {
+            guard (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  let screenID = UUID(uuidString: item.lastPathComponent),
+                  !activeScreenIDs.contains(screenID) else { continue }
+            try? fm.removeItem(at: item)
+        }
+
+        for screenID in activeScreenIDs {
+            let matching = summaries
+                .filter { $0.record.screenID == screenID }
+                .sorted { $0.record.createdAt < $1.record.createdAt }
+            let destination = screenAssetsURL(root: root, screenID: screenID).appendingPathComponent("screen.png")
+            if !fm.fileExists(atPath: destination.path),
+               let source = matching.lazy.map({ summary in
+                   root.appendingPathComponent("pins/\(summary.record.pinID.uuidString.lowercased())/assets/screen.png")
+               }).first(where: { fm.fileExists(atPath: $0.path) }),
+               let data = try? Data(contentsOf: source) {
+                try? writeAndValidate(data, to: destination)
+            }
+            if fm.fileExists(atPath: destination.path) {
+                for summary in matching {
+                    try? fm.removeItem(at: root.appendingPathComponent(
+                        "pins/\(summary.record.pinID.uuidString.lowercased())/assets/screen.png"
+                    ))
+                }
+            }
         }
     }
 

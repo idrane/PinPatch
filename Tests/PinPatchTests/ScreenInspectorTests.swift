@@ -10,8 +10,6 @@ final class ScreenInspectorTests: XCTestCase {
         detail.title = "301호"
         let window = makeWindow(root: UINavigationController(rootViewController: detail))
         let fingerprint = PPScreenInspector.fingerprint(in: window)
-        XCTAssertEqual(fingerprint.framework, .uiKit)
-        XCTAssertTrue(fingerprint.screenKind.contains("FixtureDetailViewController"))
         XCTAssertEqual(fingerprint.normalizedTitle, "301호")
 
         detail.title = "302호"
@@ -19,7 +17,7 @@ final class ScreenInspectorTests: XCTestCase {
         XCTAssertNotEqual(fingerprint.canonical, second.canonical)
     }
 
-    func testSwiftUIAnyViewUsesSemanticStructureBeyondHostingType() {
+    func testSwiftUIAccessibilityContentDoesNotAffectScreenIdentity() {
         let first = UIHostingController(rootView: AnyView(
             AccessibilityFixtureView(identifier: "save-button", label: "저장")
         ))
@@ -30,10 +28,9 @@ final class ScreenInspectorTests: XCTestCase {
         let secondWindow = makeWindow(root: second)
         let firstFingerprint = PPScreenInspector.fingerprint(in: firstWindow)
         let secondFingerprint = PPScreenInspector.fingerprint(in: secondWindow)
-        XCTAssertEqual(firstFingerprint.framework, .swiftUI)
-        XCTAssertEqual(firstFingerprint.swiftUIRootType, secondFingerprint.swiftUIRootType)
-        XCTAssertNotNil(firstFingerprint.swiftUISemanticDigest)
-        XCTAssertNotEqual(firstFingerprint.swiftUISemanticDigest, secondFingerprint.swiftUISemanticDigest)
+        XCTAssertNil(firstFingerprint.normalizedTitle)
+        XCTAssertNil(secondFingerprint.normalizedTitle)
+        XCTAssertEqual(firstFingerprint.canonical, secondFingerprint.canonical)
 
         let button = firstDescendant(of: first.view, type: UIButton.self)
         XCTAssertNotNil(button)
@@ -42,18 +39,6 @@ final class ScreenInspectorTests: XCTestCase {
             let (hint, _) = PPScreenInspector.elementHint(at: point, in: firstWindow)
             XCTAssertEqual(hint.accessibilityIdentifier, "save-button")
         }
-    }
-
-    func testSwiftUISemanticDigestIgnoresExplicitCounters() {
-        let first = UIHostingController(rootView: AnyView(
-            AccessibilityFixtureView(identifier: "notifications", label: "알림 3개")
-        ))
-        let second = UIHostingController(rootView: AnyView(
-            AccessibilityFixtureView(identifier: "notifications", label: "알림 4개")
-        ))
-        let firstFingerprint = PPScreenInspector.fingerprint(in: makeWindow(root: first))
-        let secondFingerprint = PPScreenInspector.fingerprint(in: makeWindow(root: second))
-        XCTAssertEqual(firstFingerprint.swiftUISemanticDigest, secondFingerprint.swiftUISemanticDigest)
     }
 
     private func makeWindow(root: UIViewController) -> UIWindow {

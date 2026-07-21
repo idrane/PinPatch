@@ -71,6 +71,15 @@ class SkillScriptTests(unittest.TestCase):
         self.assertIn("stale revision", completed.stderr)
         self.assertFalse((self.root / "results" / f"{PIN_ID}.json").exists())
 
+    def test_scan_uses_shared_screen_snapshot(self):
+        legacy = self.root / "pins" / PIN_ID / "assets" / "screen.png"
+        shared = self.root / "screens" / "11111111-1111-4111-8111-111111111111" / "screen.png"
+        shared.parent.mkdir()
+        legacy.replace(shared)
+
+        pending = self.run_json(SCAN, "--root", self.root)["pending"][0]
+        self.assertEqual(Path(pending["screenImagePath"]), shared.resolve())
+
 
 if __name__ == "__main__":
     unittest.main()

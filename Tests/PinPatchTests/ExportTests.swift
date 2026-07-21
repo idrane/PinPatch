@@ -9,13 +9,8 @@ final class ExportTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let storage = PPStorage(rootURL: root)
         let fingerprint = PPScreenFingerprint(
-            framework: .swiftUI,
-            screenKind: "SwiftUI.UIHostingController<Fixture.DetailView>",
-            swiftUIRootType: "Fixture.DetailView",
-            swiftUISemanticDigest: "fixture-digest",
             rawTitle: nil,
             normalizedTitle: nil,
-            isModal: false,
             fingerprintVersion: 1
         )
         let screen = try await storage.resolveScreen(fingerprint)

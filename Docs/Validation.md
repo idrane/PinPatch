@@ -6,6 +6,7 @@
 - The complete package builds for a generic iOS Simulator destination.
 - Title normalization keeps `301호` and `302호` distinct while masking explicit order IDs.
 - A fingerprint version change preserves the existing `screenID` after restart.
+- A screen's first pin creates one shared full-screen screenshot, later pins keep it unchanged, and the last pin deletion removes it.
 - A failure before pin commit leaves no visible pin directory.
 - A failure after a new revision directory is committed but before `current.json` swaps leaves the old revision current; the next startup removes the orphan.
 - Deleted screen registry files and corrupt `index.json` rebuild from canonical pin folders.

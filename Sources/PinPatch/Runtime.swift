@@ -171,10 +171,9 @@ final class PPSceneSession {
     }
 
     private func showInfo() {
-        guard let scene, let appWindow = appWindow(), let overlay, let controller = overlay.overlayController else { return }
+        guard let appWindow = appWindow(), let overlay, let controller = overlay.overlayController else { return }
         let info = PPInfoViewController(
-            fingerprint: PPScreenInspector.fingerprint(in: appWindow),
-            sceneSessionID: scene.session.persistentIdentifier
+            fingerprint: PPScreenInspector.fingerprint(in: appWindow)
         )
         info.onClose = { [weak controller] in controller?.dismissOverlayPresentation() }
         controller.presentInOverlay(UINavigationController(rootViewController: info))

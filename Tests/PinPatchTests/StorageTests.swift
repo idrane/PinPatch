@@ -49,7 +49,62 @@ final class StorageTests: XCTestCase {
             XCTAssertFalse(FileManager.default.fileExists(
                 atPath: root.appendingPathComponent("pins/\(record.pinID.uuidString.lowercased())").path
             ))
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("screens/\(screen.screenID.uuidString.lowercased())/screen.png").path
+            ))
         }
+    }
+
+    func testScreenSnapshotIsSharedUntilLastPinIsDeleted() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = PPStorage(rootURL: root)
+        let screen = try await storage.resolveScreen(fingerprint())
+        let first = pin(screenID: screen.screenID)
+        let second = pin(screenID: screen.screenID)
+        let screenImage = root.appendingPathComponent("screens/\(screen.screenID.uuidString.lowercased())/screen.png")
+
+        try await storage.savePin(
+            screen: screen, record: first, note: "첫 메모",
+            screenshot: Data("first screen".utf8), crop: Data("first crop".utf8)
+        )
+        XCTAssertEqual(try Data(contentsOf: screenImage), Data("first screen".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent("pins/\(first.pinID.uuidString.lowercased())/assets/screen.png").path
+        ))
+
+        try await storage.savePin(
+            screen: screen, record: second, note: "두 번째 메모",
+            screenshot: Data("second screen".utf8), crop: Data("second crop".utf8)
+        )
+        XCTAssertEqual(try Data(contentsOf: screenImage), Data("first screen".utf8))
+
+        try await storage.deletePin(first.pinID)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: screenImage.path))
+        try await storage.deletePin(second.pinID)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: screenImage.path))
+    }
+
+    func testLegacyPinScreenshotMigratesToSharedScreenSnapshot() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let initial = PPStorage(rootURL: root)
+        let screen = try await initial.resolveScreen(fingerprint())
+        let record = pin(screenID: screen.screenID)
+        try await initial.savePin(
+            screen: screen, record: record, note: "이전 메모",
+            screenshot: Data("legacy screen".utf8), crop: Data("crop".utf8)
+        )
+
+        let shared = root.appendingPathComponent("screens/\(screen.screenID.uuidString.lowercased())/screen.png")
+        let legacy = root.appendingPathComponent("pins/\(record.pinID.uuidString.lowercased())/assets/screen.png")
+        try FileManager.default.createDirectory(at: legacy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: shared, to: legacy)
+        try FileManager.default.removeItem(at: shared.deletingLastPathComponent())
+
+        _ = try await PPStorage(rootURL: root).prepare()
+        XCTAssertEqual(try Data(contentsOf: shared), Data("legacy screen".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
     }
 
     func testRevisionSwapIsAtomicAndStartupRemovesOrphan() async throws {
@@ -151,13 +206,8 @@ final class StorageTests: XCTestCase {
 
     private func fingerprint(version: Int = 1, title: String = "301호") -> PPScreenFingerprint {
         PPScreenFingerprint(
-            framework: .uiKit,
-            screenKind: "Fixture.DetailViewController",
-            swiftUIRootType: nil,
-            swiftUISemanticDigest: nil,
             rawTitle: title,
             normalizedTitle: title,
-            isModal: false,
             fingerprintVersion: version
         )
     }

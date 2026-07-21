@@ -47,7 +47,7 @@ final class PPListViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        let title = screens[section].fingerprint.rawTitle ?? screens[section].fingerprint.screenKind
+        let title = screens[section].fingerprint.rawTitle ?? "제목 없음"
         return "화면 \(section + 1)  ·  \(title)"
     }
 

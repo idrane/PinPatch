@@ -24,10 +24,9 @@ actor PPExportService {
         for (screenIndex, screen) in activeScreens.enumerated() {
             let matching = pins.filter { $0.record.screenID == screen.screenID }
             guard !matching.isEmpty else { continue }
-            lines.append("## 화면 \(screenIndex + 1): \(screen.fingerprint.rawTitle ?? screen.fingerprint.screenKind)")
+            lines.append("## 화면 \(screenIndex + 1): \(screen.fingerprint.rawTitle ?? "제목 없음")")
             lines.append("")
             lines.append("- screen_id: `\(screen.screenID.uuidString.lowercased())`")
-            lines.append("- kind: `\(screen.fingerprint.screenKind)`")
             lines.append("")
             for (pinIndex, pin) in matching.enumerated() {
                 lines.append("### \(screenIndex + 1)-\(pinIndex + 1)")
