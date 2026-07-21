@@ -47,7 +47,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
     private var actionInfoViews: [UIButton: UILabel] = [:]
     private var infoHideWorkItem: DispatchWorkItem?
     private var didApplyInitialBubblePosition = false
-    private var previousKeyWindow: UIWindow?
+    private weak var previousKeyWindow: UIWindow?
     private weak var embeddedToolController: UIViewController?
 
     override func viewDidLoad() {
@@ -178,22 +178,11 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         } completion: { _ in finish() }
     }
 
-    func dismissOverlayPresentation(completion: (() -> Void)? = nil) {
+    func dismissOverlayPresentation() {
         dismiss(animated: true) { [weak self] in
-            self?.restorePreviousKeyWindow()
-            completion?()
+            self?.previousKeyWindow?.makeKey()
+            self?.previousKeyWindow = nil
         }
-    }
-
-    private func restorePreviousKeyWindow() {
-        let overlayWindow = view.window
-        let hostWindow = previousKeyWindow
-            ?? overlayWindow?.windowScene?.windows.reversed().first(where: {
-                !$0.isHidden && $0.alpha > 0 && $0 !== overlayWindow && !($0 is PPOverlayWindow)
-            })
-        overlayWindow?.resignKey()
-        hostWindow?.makeKeyAndVisible()
-        previousKeyWindow = nil
     }
 
     func prepareForRemoval() {
@@ -206,7 +195,8 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
             self.embeddedToolController = nil
         }
         activeFlow = nil
-        restorePreviousKeyWindow()
+        previousKeyWindow?.makeKey()
+        previousKeyWindow = nil
     }
 
     func showNonBlockingError(_ message: String) {
@@ -244,6 +234,7 @@ final class PPOverlayViewController: UIViewController, UIGestureRecognizerDelega
         actionContainer.frame = view.bounds
         actionContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         actionContainer.backgroundColor = .clear
+        actionContainer.isOpaque = false
         view.insertSubview(actionContainer, belowSubview: bubbleButton)
 
         configureActionButton(editButton, symbol: "pin.fill", title: "핀 추가", tint: PPTheme.pin, selector: #selector(toggleEdit))

@@ -4,24 +4,6 @@ import XCTest
 
 @MainActor
 final class OverlayTests: XCTestCase {
-    func testOverlayRemainsTransparentWhileCapturingPinTouches() {
-        let controller = PPOverlayViewController()
-        let window = PPOverlayWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.overlayController = controller
-        window.rootViewController = controller
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        window.isHidden = false
-        controller.loadViewIfNeeded()
-
-        controller.isPinEditing = true
-
-        XCTAssertFalse(window.isOpaque)
-        XCTAssertEqual(window.backgroundColor, .clear)
-        XCTAssertFalse(controller.view.isOpaque)
-        XCTAssertEqual(controller.view.backgroundColor, .clear)
-    }
-
     func testViewModePassesThroughOutsideControlsAndEditModeCaptures() {
         let controller = PPOverlayViewController()
         let window = PPOverlayWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))

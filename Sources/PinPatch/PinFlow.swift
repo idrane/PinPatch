@@ -31,9 +31,8 @@ final class PPPinFlowCoordinator {
         cropController.onCancel = { [weak self] in self?.finish(nil) }
         cropController.onCrop = { [weak self] image in self?.showNote(for: image) }
         let navigation = UINavigationController(rootViewController: cropController)
-        navigation.modalPresentationStyle = .fullScreen
         navigationController = navigation
-        overlayController.presentInOverlay(navigation)
+        overlayController.embedToolContent(navigation)
     }
 
     private func showNote(for image: UIImage) {
@@ -48,7 +47,7 @@ final class PPPinFlowCoordinator {
     }
 
     private func finish(_ output: PPPinFlowOutput?) {
-        overlayController?.dismissOverlayPresentation { [weak self] in
+        overlayController?.removeEmbeddedToolContent(animated: true) { [weak self] in
             guard let self else { return }
             self.navigationController = nil
             self.completion(output)
